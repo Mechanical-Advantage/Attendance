@@ -1,0 +1,83 @@
+@font-face {
+	font-family: "Robotech GP";
+	src: url("/robotechgp.ttf");
+}
+
+html {
+	font-family: "Robotech GP";
+}
+
+a {
+	color: black;
+	text-decoration: None;
+}
+
+div.leftlink {
+	position: absolute;
+	top: 0%;
+	height: 100%;
+	left: 0%;
+	width: 50%;
+}
+
+div.rightlink {
+	position: absolute;
+	top: 0%;
+	height: 100%;
+	right: 0%;
+	width: 50%;
+}
+
+div.signin {
+	font-size: 65px;
+	position: absolute;
+	top: 45%;
+	left: 25%;
+	transform: translate(-50%, -50%);
+}
+
+div.signout {
+	font-size: 65px;
+	position: absolute;
+	top: 45%;
+	left: 75%;
+	transform: translate(-50%, -50%);
+}
+
+div.title {
+	font-size: 45px;
+	position: absolute;
+	left: 0%;
+	width: 100%;
+	text-align: center;
+}
+
+div.center {
+	position: absolute;
+	top: 75px;
+	left: 50%;
+	transform: translate(-50%, 0);
+}
+
+div.alert {
+	font-size: 35px;
+	position: absolute;
+	left: 0%;
+	width: 100%;
+	bottom: 15px;
+	text-align: center;
+}
+
+table {
+	font-size: 25px;
+	text-align: center;
+	border-collapse: collapse;
+	table-layout: fixed;
+	width: 600px;
+}
+
+th, td {
+    	border: 1px solid black;
+    	padding: 8px;
+	width: 150px;
+}
