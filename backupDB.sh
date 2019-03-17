@@ -1,5 +1,6 @@
 #!/bin/bash
 cd '/home/jaw99/Attendance'
+python3 backupDB_updateTime.py
 git add attendance.db
 echo
 message="Updating backup database on "`date '+%m-%d-%Y at %I:%M:%S %p'`
