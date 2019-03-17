@@ -4,6 +4,14 @@ import time
 import sqlite3 as sql
 
 looptime = 60 #in seconds
+logpath = "/home/jaw99/Attendance/logs/log_read_log.log"
+
+def log(message):
+    fullMessage = "[" + time.strftime("%a %m-%d-%Y at %I:%M:%S %p") + "] " + message
+    print(fullMessage)
+    log = open(logpath, "a")
+    log.write(fullMessage + "\n")
+    log.close()
 
 def refresh(connection, currentTime, data):
     #Config
@@ -40,15 +48,15 @@ def refresh(connection, currentTime, data):
     namesFound = cur.fetchall()
     for row in namesFound:
         name = row[0]
-        print("[" + time.ctime(currentTime) + "] Found " + name)
+        log("Found " + name)
         if name in signedOutLocked:
-            print("[" + time.ctime(currentTime) + "] Skipped checking in " + name)
+            log("Skipped checking in " + name + " (signed out recently)")
         else:
             cur.execute("SELECT * FROM live WHERE name=?", (name,))
             if len(cur.fetchall()) != 0:
                 cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (currentTime,name))
             else:
-                print("[" + time.ctime(currentTime) + "] Checked in " + name)
+                log("Checked in " + name)
                 cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,currentTime))
                 cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-1)", (name,currentTime))
 
@@ -57,57 +65,56 @@ def refresh(connection, currentTime, data):
     checkOutList = cur.fetchall()
     for row in checkOutList:
         name = row[0]
-        print("[" + time.ctime(currentTime) + "] Checked out " + name)
-        cur.execute("DELETE FROM live WHERE name=?", (name,))
-        cur.execute("UPDATE history SET timeOut=? WHERE timeOut=-1 AND name=?", (round(currentTime-((threshold/2)*60)),name))
+        cur.execute("SELECT timeOut FROM history WHERE name=? AND timeOut < 0", (name,))
+        status = cur.fetchall()[0][0]
+        if status == -2 and currentTime-row[1] < 12*60*60:
+            log("Skipped checking out " + name + " (signed in manually)")
+        else:
+            if currentTime-row[1] >= 12*60*60:
+                log("Checked out " + name + " (not seen for 12 hours)")
+            else:
+                log("Checked out " + name)
+            cur.execute("DELETE FROM live WHERE name=?", (name,))
+            cur.execute("UPDATE history SET timeOut=? WHERE timeOut=-1 AND name=?", (round(currentTime-((threshold/2)*60)),name))
 
 if __name__ == "__main__":
     while True:
         print("Refreshing...                 ", end="\r")
-        conn = sql.connect("attendance.db")
-        cur = conn.cursor()
-        processData = []
-        currentTime = int(round(time.time()))
-
-        #Update last update datetime
-        cur.execute("SELECT * FROM lastUpdate")
-        lastUpdateData = cur.fetchall()
-        lastUpdate = lastUpdateData[0][0]
-        cur.execute("UPDATE lastUpdate SET timestamp=?", (currentTime,))
-
-        #Read log file
-        with open("/home/jaw99/python/probemon/probemon.log") as f:
-            while True:
-                try:
-                    lineval = f.readline()
-                except:
-                    x = 0 #Need to have code here to create valid 'except'
-                else:
-                    if not lineval:
-                        break
-                    data = lineval.split('\t')
-                    try:
-                        int(data[0])
-                    except:
-                        x = 0 #Need to have code here, to create valid 'except'
-                    else:
-                        if int(data[0]) > lastUpdate:
-                            cur.execute("SELECT detail FROM log ORDER BY timestamp DESC LIMIT 1")
-                            lastItem = cur.fetchall()
-                            save = False
-                            if len(lastItem) == 0:
-                                save = True
-                            if save == False:
-                                if lastItem[0][0] != data[1]:
-                                    save = True
-                            if save:
-                                cur.execute("INSERT INTO log(timestamp,function,detail) VALUES (?,?,?)", (int(data[0]), "mac", data[1]))
-                            processData.append(["mac", data[1]])
-
         try:
+            conn = sql.connect("attendance.db")
+            cur = conn.cursor()
+            processData = []
+            currentTime = int(round(time.time()))
+
+            #Update last update datetime
+            cur.execute("SELECT * FROM lastUpdate")
+            lastUpdateData = cur.fetchall()
+            lastUpdate = lastUpdateData[0][0]
+            cur.execute("UPDATE lastUpdate SET timestamp=?", (currentTime,))
+
+            #Read log file
+            i = 0
+            with open("/home/jaw99/python/probemon/probemon.log") as f:
+                while True:
+                    i += 1
+                    try:
+                        lineval = f.readline()
+                    except:
+                        x = 0 #Need to have code here to create valid 'except'
+                    else:
+                        if not lineval:
+                            break
+                        data = lineval.split('\t')
+                        try:
+                            int(data[0])
+                        except:
+                            x = 0 #Need to have code here, to create valid 'except'
+                        else:
+                            if int(data[0]) > lastUpdate:
+                                processData.append(["mac", data[1]])
             refresh(connection=conn, currentTime=currentTime, data=processData)
         except:
-            print("[" + time.ctime() + "] WARNING - failed to refresh")
+            log("WARNING - failed to refresh")
         conn.commit()
         conn.close()
 

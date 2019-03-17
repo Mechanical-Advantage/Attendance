@@ -3,11 +3,6 @@ import datetime
 import cherrypy
 import sqlite3 as sql
 import math
-import plotly as py
-import plotly.graph_objs as go
-import numpy as np
-import psutil
-from ics import Calendar, Event
 import subprocess
 import inflect
 import os
@@ -26,9 +21,23 @@ if port == 80:
 else:
     host_full = host + ":" + str(port)
 
-
 def currentTime():
     return(int(round(time.time())))
+
+def formatDuration(duration, showSeconds):
+    tempDuration = duration
+    hours = math.floor(tempDuration/3600)
+    tempDuration -= hours*3600
+    minutes = math.floor(tempDuration/60)
+    seconds = tempDuration - minutes*60
+    durationFormatted = ""
+    if hours > 0:
+        durationFormatted = str(hours) + "h "
+    if minutes > 0:
+        durationFormatted = durationFormatted + str(minutes) + "m "
+    if showSeconds:
+        durationFormatted = durationFormatted + str(seconds) + "s "
+    return(durationFormatted[:-1])
 
 def orderNames(rawNames):
     names = []
@@ -47,16 +56,6 @@ def orderNames(rawNames):
             namesOutput.append(namesSorted[i]["first"] + " " + namesSorted[i]["last"])
     return(namesOutput)
 
-def findWeekday(weekday, next):
-    scanTime = currentTime()
-    while time.strftime("%A", time.localtime(scanTime)) != weekday:
-        if next:
-            scanTime += 60*60*24
-        else:
-            scanTime -= 60*60*24
-
-    return(time.strftime("%Y-%m-%d", time.localtime(scanTime)))
-
 def javascriptDate(date, noTime=False):
     newDate = time.localtime(date)
     year = time.strftime("%Y", newDate)
@@ -66,20 +65,6 @@ def javascriptDate(date, noTime=False):
     else:
         day_hour_minute = time.strftime("%d, %H, %M", newDate)
     return("new Date(" + year + ", " + month + ", " + day_hour_minute + ")")
-
-def generateIcs(data):
-    c = Calendar()
-    for row in data:
-        e = Event()
-        e.name = row[0]
-        e.begin = str(row[1])
-        if row[2] < 0:
-            e.end = currentTime()
-        else:
-            e.end = str(row[2])
-        c.events.add(e)
-    with open('web_resources/calendar.ics', 'w') as my_file:
-        my_file.writelines(c)
 
 def title(display):
     uppers = {}
@@ -111,19 +96,14 @@ class mainServer(object):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/mainStyle.css"><style>
+<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"><style>
 iframe {
   border: none;
   width: 100%;
   height: 500px;
 }
 </style>
-<script>
-window.setInterval("reloadIFrame();", 60000);
-function reloadIFrame() {
- document.getElementById("liveView").src="/live?version=homepage";
-}
-</script>
+<script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
 <form method="get" action="/getRecords">
@@ -135,9 +115,19 @@ function reloadIFrame() {
 <a href="/manual">Manual Sign In/Out</a><br><br>
 <a href="/peoplelist">Manage People</a>
 
-<h3>People Here Now</h3>
- <iframe id="liveView" src="/live?version=homepage" name="liveView"></iframe>
+<br><p id="lastUpdate" style="font-style: italic;"></p>
 
+<h3>People Here Now</h3>
+<iframe id="liveView" src="/live/homepage" name="liveView"></iframe>
+
+<script>
+window.setInterval("reloadLastUpdate();", 1000);
+reloadLastUpdate();
+window.setInterval("reloadLive();", 60000);
+function reloadLive() {
+ document.getElementById("liveView").src="/live/homepage";
+}
+</script>
 </body></html>
         """
 
@@ -169,7 +159,7 @@ function reloadIFrame() {
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/mainStyle.css">
+<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 <script>
 
 function refresh() {
@@ -264,7 +254,7 @@ $checkHtml
 
         output = """
 <html><head>
-<link rel="stylesheet" type="text/css" href="/static/mainStyle.css">
+<link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 <style>
 $versioncss
 </style>
@@ -282,7 +272,7 @@ transform: translate(-50%, 0);
 
 @font-face {
 	font-family: "Robotech GP";
-	src: url("/static/robotechgp.ttf");
+	src: url("/static/fonts/robotechgp.ttf");
 }
 
 td {
@@ -292,7 +282,11 @@ font-size: 20px;
             """)
         else:
             output = output.replace("$versioncss", """
-div.center {}
+div.center {
+position: absolute;
+top: 0px;
+left: 0px;
+}
             """)
 
         #Get list of live names
@@ -315,11 +309,20 @@ div.center {}
         return(output)
 
     @cherrypy.expose
+    def lastUpdate(self):
+        conn = sql.connect(database)
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM lastUpdate")
+        time = str(cur.fetchall()[0][0])
+        conn.close()
+        return(time)
+
+    @cherrypy.expose
     def getRecords(self, startDate="", endDate="", filter="*", fromAdvanced="0"):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/mainStyle.css">
+<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="text/javascript">google.charts.load('current', {'packages':["corechart", "timeline", "calendar"]});</script>
@@ -589,23 +592,10 @@ $timelineDiv
             output = output.replace("$timelineScript", "")
             output = output.replace("$timelineDiv", "")
 
-        #Generate .ics
-        #generateIcs(rows)
-
         #Generate table contents
         dateFormat = "%a %m/%d - %I:%M %p"
         tempContents = "<table><tr><th>Name</th><th>Time In</th><th>Time Out</th><th>Duration</th>"
         totalDuration = 0
-        def formatDuration(duration):
-            tempDuration = duration
-            hours = math.floor(tempDuration/3600)
-            tempDuration -= hours*3600
-            minutes = math.floor(tempDuration/60)
-            durationFormatted = ""
-            if hours > 0:
-                durationFormatted = str(hours) + "h "
-            durationFormatted = durationFormatted + str(minutes) + "m"
-            return(durationFormatted)
 
         internalPieData = {}
         histogramData = [['Name', 'Hours']]
@@ -631,7 +621,7 @@ $timelineDiv
 
             #Format Duration
             totalDuration += rawDuration
-            durationFormatted = formatDuration(rawDuration)
+            durationFormatted = formatDuration(rawDuration, showSeconds=False)
 
             #Get class
             if rowid > 25:
@@ -640,7 +630,7 @@ $timelineDiv
             else:
                 rowclass = ""
 
-            tempContents = tempContents + '<tr' + rowclass + '><td><a class="hidden" href="/person?name=' + row[0] + '">' + row[0] + "</a></td><td>" + timeInFormatted + "</td><td>" + timeOutFormatted + "</td><td>" + durationFormatted + "</td></tr>"
+            tempContents = tempContents + '<tr' + rowclass + '><td><a class="hidden" href="/person/' + row[0] + '">' + row[0] + "</a></td><td>" + timeInFormatted + "</td><td>" + timeOutFormatted + "</td><td>" + durationFormatted + "</td></tr>"
 
         tempContents = tempContents + "</table>"
         if extraRowCount > 0:
@@ -653,9 +643,9 @@ $timelineDiv
         #Generate title
         titleDateFormat = "%a %m/%d"
         if singleDay:
-            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " (" + formatDuration(totalDuration) + " total time)</h3>"
+            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " (" + formatDuration(totalDuration, showSeconds=False) + " total time)</h3>"
         else:
-            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " to " + time.strftime(titleDateFormat, time.localtime(endDate - 1)) + " (" + formatDuration(totalDuration) + " total time)</h3>"
+            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " to " + time.strftime(titleDateFormat, time.localtime(endDate - 1)) + " (" + formatDuration(totalDuration, showSeconds=False) + " total time)</h3>"
 
         #Generate pie chart
         if gen_pieChart:
@@ -675,7 +665,7 @@ $timelineDiv
                     categoriesString = "Unclassified"
                 else:
                     categoriesString = formatList(categories, "and")
-                
+
                 if categoriesString in categoryPieData:
                     categoryPieData[categoriesString] += seconds
                 else:
@@ -742,12 +732,12 @@ $timelineDiv
     @cherrypy.expose
     def manual(self):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css">
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script>
 window.setInterval("updateDisplayType();", 5000);
 window.setInterval("reloadIFrame();", 60000);
 function reloadIFrame() {
- document.getElementById("liveView").src="/live?version=signin";
+ document.getElementById("liveView").src="/live/signin";
 }
 </script>
 
@@ -758,18 +748,18 @@ function reloadIFrame() {
 
 <div class="aboveSlideshow">
 <div class="title">People Here Now:</div>
-<div style="position: absolute; top: 60px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live?version=signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
-<div class="alert"><a href="/manual_select?func=info" class="show">Should I sign in?</a></div>
+<div style="position: absolute; top: 60px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live/signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
+<div class="alert"><a href="/manual_select/info" class="show">Should I sign in?</a></div>
 <div class="signin">Sign In</div>
 <div class="signout">Sign Out</div>
 
-<a href="manual_select?func=signin"><div class="leftlink"></div></a>
-<a href="manual_select?func=signout"><div class="rightlink"></div></a>
+<a href="manual_select/signin"><div class="leftlink"></div></a>
+<a href="manual_select/signout"><div class="rightlink"></div></a>
 </div>
 
 <div class="linkblocker"></div>
 
-<script src="/static/slideshow.js"></script>
+<script src="/static/js/slideshow.js"></script>
 <script type="text/javascript">
 window.setInterval("updateSlideshow();", 500);
 function updateSlideshow() {
@@ -792,7 +782,7 @@ updateSlideshow()
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css"></head><body>
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 
 <div class="title">$prompt</div>
 <div style="position: absolute; left: 50%; transform: translate(-50%, 0); top: 50px; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div>
@@ -816,7 +806,7 @@ updateSlideshow()
         names = []
         for i in range(0, len(namesUnfiltered)):
             if func == "signin":
-                display = namesUnfiltered[i] not in namesHere
+                display = True
             elif func == "signout":
                 display = namesUnfiltered[i] in namesHere
             else:
@@ -840,7 +830,7 @@ updateSlideshow()
                 if i % 8 == 0:
                     if i != 0:
                         tempTableHtml = tempTableHtml + "</tr><tr>"
-                tempTableHtml = tempTableHtml + "<td class=\"letters\"><a href=\"/manual_select?func=" + func + "&letter=" + letters[i] + "\">" + letters[i] + "</a></td>"
+                tempTableHtml = tempTableHtml + "<td class=\"letters\"><a href=\"/manual_select/" + func + "/" + letters[i] + "\">" + letters[i] + "</a></td>"
             tempTableHtml = tempTableHtml + "</tr>"
 
         else:
@@ -867,7 +857,7 @@ updateSlideshow()
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css"></head><body>
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 $contents
 </body></html>
         """
@@ -913,13 +903,17 @@ $contents
 
             #Update database
             if func == "signin":
-                cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,time))
-                cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,time))
+                cur.execute("SELECT * FROM live WHERE name=?", (name,))
+                if len(cur.fetchall()) != 0:
+                    cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (time,name))
+                    cur.execute("UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
+                else:
+                    cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,time))
+                    cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,time))
             elif func == "signout":
                 cur.execute("DELETE FROM live WHERE name=?", (name,))
                 cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (time,name))
                 cur.execute("INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name,time))
-            cur.execute("INSERT INTO log(timestamp,function,detail) VALUES (?,?,?)", (currentTime(),func,name))
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
@@ -933,7 +927,7 @@ $contents
     @cherrypy.expose
     def manual_addDevice_stage1(self, name="John Doe"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css">
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script type="application/javascript">
 function chgAction(mainForm){
 if( document.mainForm.deviceType.selectedIndex==13 )
@@ -978,7 +972,7 @@ In order to automatically track attendace, we can detect when devices enter this
     @cherrypy.expose
     def manual_addDevice_stage2(self, name="John Doe", deviceType="iPhone"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css"></head><body>
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual_internal?func=info&name=$name">< Return</a></div><br>
 <div class="message_small">
 
@@ -999,7 +993,7 @@ How would you classify this device? (phone, tablet, laptop, watch, etc.) <input 
     @cherrypy.expose
     def manual_addDevice_stage3(self, name="John Doe", deviceType="iPhone", description="", forceManual="0"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css">
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script>
 window.setInterval("reloadIFrame();", 1000);
 function reloadIFrame() {
@@ -1107,7 +1101,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><link rel="stylesheet" type="text/css" href="/static/signin.css">
+<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <meta http-equiv="refresh" content="5; url=/manual_internal?func=info&name=$name" />
 </head><body>
 <div class="message">
@@ -1129,7 +1123,7 @@ $message
 
         conn.commit()
         conn.close()
-        
+
         return(output.replace("$name", name))
 
     @cherrypy.expose
@@ -1138,7 +1132,7 @@ $message
         cur = conn.cursor()
 
         output = """
-<html><head><link rel="stylesheet" type="text/css" href="/static/signin.css"><base target="_parent"></head><body>
+<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><base target="_parent"></head><body>
 <div class="message">
 $content
 </div>
@@ -1178,7 +1172,7 @@ Your device is almost ready to be tracked.
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/signin.css"></head><body>
+<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 <div class="message">$message</div>
 </body></html>
         """
@@ -1209,7 +1203,7 @@ Your device is almost ready to be tracked.
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>People - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/mainStyle.css"></head><body>
+<html><head><title>People - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
 <a href="/">< Return</a><br><br>
 
 <form method="post" action="/peoplelist_add">
@@ -1232,7 +1226,8 @@ Your device is almost ready to be tracked.
         #Create html
         peoplelistHtml = ""
         for i in range(0, len(names)):
-            cur.execute("SELECT description FROM devices WHERE name=?", (names[i],))
+            #Get devices
+            cur.execute("SELECT description FROM devices WHERE name=? ORDER BY description", (names[i],))
             devices = cur.fetchall()
             if len(devices) == 0:
                 devicesText = "no devices"
@@ -1245,7 +1240,18 @@ Your device is almost ready to be tracked.
                         description = devices[f][0]
                     devicesText = devicesText + description + ", "
                 devicesText = devicesText[:-2]
-            peoplelistHtml = peoplelistHtml + "<a style=\"color: black; font-weight: bold; text-decoration: none;\" href=\"/person?name=" + names[i] + "\">"+ names[i] + "</a> <i>(" + devicesText + ")</i><br>"
+
+            #Get categories
+            cur.execute("SELECT category FROM categories WHERE name=? ORDER BY category", (names[i],))
+            categories = cur.fetchall()
+            if len(categories) == 0:
+                categoriesText = "no categories"
+            else:
+                categoriesText = ""
+                for f in range(0, len(categories)):
+                    categoriesText = categoriesText + categories[f][0] + ", "
+                categoriesText = categoriesText[:-2]
+            peoplelistHtml = peoplelistHtml + "<a style=\"color: black; font-weight: bold; text-decoration: none;\" href=\"/person/" + names[i] + "\">"+ names[i] + "</a> <i>(" + devicesText + "), (" + categoriesText + ")</i><br>"
         output = output.replace("$peoplelistHtml", peoplelistHtml)
 
         conn.close()
@@ -1268,8 +1274,8 @@ Your device is almost ready to be tracked.
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>$name - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/mainStyle.css"></head><body>
-<a href="javascript:window.history.back();">< Return</a><br><br>
+<html><head><title>$name - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
+<a href="/peoplelist">< Return</a><br><br>
 
 <h2>$name</h2>
 <h3>General</h3>
@@ -1324,8 +1330,8 @@ Your device is almost ready to be tracked.
             else:
                 description = devices[i][1]
             devicesHtml = devicesHtml + "<i>" + description + "</i>"
-            devicesHtml = devicesHtml + " - <a href=\"/person_toggleReliable?id=" + str(devices[i][0]) + "\">" + toggleText + "</a>"
-            devicesHtml = devicesHtml + " - <a href=\"/person_removeDevice?id=" + str(devices[i][0]) + "\">Remove device</a><br>"
+            devicesHtml = devicesHtml + " - <a href=\"/person_toggleReliable/" + str(devices[i][0]) + "\">" + toggleText + "</a>"
+            devicesHtml = devicesHtml + " - <a href=\"/person_removeDevice/" + str(devices[i][0]) + "\">Remove device</a><br>"
         output = output.replace("$devicesHtml", devicesHtml)
 
         #Get categories
@@ -1357,7 +1363,7 @@ Your device is almost ready to be tracked.
         cur.execute("UPDATE categories SET name=? WHERE name=?", (newName,oldName))
         cur.execute("UPDATE addDevice SET name=? WHERE name=?", (newName,oldName))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person?name=$name" />"""
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", newName)
 
         conn.commit()
@@ -1383,7 +1389,7 @@ Your device is almost ready to be tracked.
 
         cur.execute("INSERT INTO categories(name,category) VALUES (?,?)", (name,category))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person?name=$name" />"""
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", name)
 
         conn.commit()
@@ -1397,7 +1403,7 @@ Your device is almost ready to be tracked.
 
         cur.execute("DELETE FROM categories WHERE name=? AND category=?", (name,category))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person?name=$name" />"""
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", name)
 
         conn.commit()
@@ -1418,7 +1424,7 @@ Your device is almost ready to be tracked.
                 newValue = 0
             cur.execute("UPDATE devices SET reliable=? WHERE id=?", (newValue,id))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person?name=$name" />"""
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
 
         #Find name
         cur.execute("SELECT name FROM devices WHERE id=?", (id,))
@@ -1439,7 +1445,7 @@ Your device is almost ready to be tracked.
 
         cur.execute("DELETE FROM devices WHERE id=?", (id,))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person?name=$name" />"""
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", name)
 
         conn.commit()
@@ -1474,5 +1480,11 @@ $traceback
     output = output.replace("$message", message)
     return(output)
 
-cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host, 'error_page.500': error_page, 'error_page.404': error_page})
-cherrypy.quickstart(mainServer(), "/", {"/": {"log.access_file": root + "serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {"tools.staticdir.on": True, "tools.staticdir.dir": root + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root + "static/favicon.ico"}})
+if __name__ == "__main__":
+    #Check for root permissions
+    if os.geteuid() != 0 and port == 80:
+        print("Please run again using 'sudo' to host on port 80.")
+        exit()
+
+    cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host, 'error_page.500': error_page, 'error_page.404': error_page})
+    cherrypy.quickstart(mainServer(), "/", {"/": {"log.access_file": root + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {"tools.staticdir.on": True, "tools.staticdir.dir": root + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root + "static/favicon.ico"}})
