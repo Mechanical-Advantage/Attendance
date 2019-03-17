@@ -106,6 +106,8 @@ iframe {
 <script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
+$backupWarning
+
 <form method="get" action="/getRecords">
 <input type="date" name="startDate" value="$startValue"> to <input type="date" name="endDate" value="$endValue"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
 <button type="submit">Get Records</button>
@@ -150,6 +152,14 @@ function reloadLive() {
         else:
             endValue = time.strftime("%Y-%m-%d")
         output = output.replace("$endValue", endValue)
+
+        #Add backup warning in neccessary
+        cur.execute("SELECT * FROM lastBackup")
+        lastBackup = cur.fetchall()[0][0]
+        if currentTime() - lastBackup > 7*24*60*60:
+            output = output.replace("$backupWarning", '<div style="color: red; font-size: 25px; margin-bottom: 5px;">WARNING: no database backups in the past week</div>')
+        else:
+            output = output.replace("$backupWarning", "")
 
         conn.close()
         return(output)
