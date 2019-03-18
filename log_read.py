@@ -68,15 +68,15 @@ def refresh(connection, currentTime, data):
         name = row[0]
         cur.execute("SELECT timeOut FROM history WHERE name=? AND timeOut < 0", (name,))
         status = cur.fetchall()[0][0]
-        if status == -2 and currentTime-row[1] < 12*60*60:
+        if status == -2 and (currentTime-row[1]) < 12*60*60:
             log("Skipped checking out " + name + " (signed in manually)")
         else:
-            if currentTime-row[1] >= 12*60*60:
+            if (currentTime-row[1]) >= 12*60*60:
                 log("Checked out " + name + " (not seen for 12 hours)")
             else:
                 log("Checked out " + name)
             cur.execute("DELETE FROM live WHERE name=?", (name,))
-            cur.execute("UPDATE history SET timeOut=? WHERE timeOut=-1 AND name=?", (round(currentTime-((threshold/2)*60)),name))
+            cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (round(currentTime-((threshold/2)*60)),name))
 
 if __name__ == "__main__":
     while True:
