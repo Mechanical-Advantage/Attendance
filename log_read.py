@@ -4,7 +4,8 @@ import time
 import sqlite3 as sql
 
 looptime = 60 #in seconds
-logpath = "/home/jaw99/Attendance/logs/log_read_log.log"
+logpath = "/home/jaw99/Attendance_data/logs/log_read_log.log"
+database = "/home/jaw99/Attendance_data/attendance.db"
 
 def log(message):
     fullMessage = "[" + time.strftime("%a %m-%d-%Y at %I:%M:%S %p") + "] " + message
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     while True:
         print("Refreshing...                 ", end="\r")
         try:
-            conn = sql.connect("attendance.db")
+            conn = sql.connect(database)
             cur = conn.cursor()
             processData = []
             currentTime = int(round(time.time()))

@@ -12,9 +12,11 @@ from random import shuffle
 port = 80
 host = '192.168.1.101'
 database = "attendance.db"
-root = "/home/jaw99/Attendance/"
+root_main = "/home/jaw99/Attendance/"
+root_data = "/home/jaw99/Attendance_data/"
 
 #Setup
+database = root_data + database
 languageManager = inflect.engine()
 if port == 80:
     host_full = host
@@ -106,8 +108,6 @@ iframe {
 <script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
-$backupWarning
-
 <form method="get" action="/getRecords">
 <input type="date" name="startDate" value="$startValue"> to <input type="date" name="endDate" value="$endValue"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
 <button type="submit">Get Records</button>
@@ -152,14 +152,6 @@ function reloadLive() {
         else:
             endValue = time.strftime("%Y-%m-%d")
         output = output.replace("$endValue", endValue)
-
-        #Add backup warning in neccessary
-        cur.execute("SELECT * FROM lastBackup")
-        lastBackup = cur.fetchall()[0][0]
-        if currentTime() - lastBackup > 7*24*60*60:
-            output = output.replace("$backupWarning", '<div style="color: red; font-size: 25px; margin-bottom: 5px;">WARNING: no database backups in the past week</div>')
-        else:
-            output = output.replace("$backupWarning", "")
 
         conn.close()
         return(output)
@@ -780,7 +772,7 @@ updateSlideshow()
 </body></html>
         """
 
-        imagelist = os.listdir(root + "static/backgrounds")
+        imagelist = os.listdir(root_main + "static/backgrounds")
         shuffle(imagelist)
         imagelist = str(imagelist).replace("'", '"')
         output = output.replace("$imagelist", imagelist)
@@ -1497,4 +1489,4 @@ if __name__ == "__main__":
         exit()
 
     cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host, 'error_page.500': error_page, 'error_page.404': error_page})
-    cherrypy.quickstart(mainServer(), "/", {"/": {"log.access_file": root + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {"tools.staticdir.on": True, "tools.staticdir.dir": root + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root + "static/favicon.ico"}})
+    cherrypy.quickstart(mainServer(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {"tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/favicon.ico"}})
