@@ -788,11 +788,17 @@ updateSlideshow()
 
 <div class="title">$prompt</div>
 <div style="position: absolute; left: 50%; transform: translate(-50%, 0); top: 50px; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div>
-<div class="center"><table>$tableHtml</table></div>
-
+<div class="center"><table>$tableHtml</table>
+<div style="text-align: center; font-size: 30px; margin-top: 10px;">If your name isn't listed, you don't need to $action</div>
+</div>
 
 </body></html>
         """
+        #Fill in action
+        if func == "signout":
+            output = output.replace("$action", "sign out")
+        else:
+            output = output.replace("$action", "sign in")
 
         #Get list of all names
         cur.execute("SELECT DISTINCT name FROM people ORDER BY name")
