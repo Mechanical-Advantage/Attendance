@@ -13,7 +13,7 @@ cp 'serverlog.log' "./serverlogs/$date.log"
 echo '' > 'serverlog.log'
 
 #Create backup
-sizeLimit='505' #in megabytes
+sizeLimit='28672' #in megabytes (1 gigabyte = 1024 megabytes); currently set at 28 gigabytes
 targetPath='/media/jaw99/ATT_BACKUP'
 
 cd '/home/jaw99/'
@@ -22,7 +22,7 @@ cd '/home/jaw99/'
 du_output=`du -sb ./Attendance_data`
 du_array=($du_output)
 dataSize=${du_array[0]}
-targetSize=$(expr $sizeLimit \* 1000000 - $dataSize)
+targetSize=$(expr $sizeLimit \* 1048576 - $dataSize)
 
 #Find current size
 du_output=`du -sb "$targetPath"`
