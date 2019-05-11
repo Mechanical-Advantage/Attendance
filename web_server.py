@@ -41,7 +41,7 @@ def formatDuration(duration, showSeconds):
         durationFormatted = durationFormatted + str(seconds) + "s "
     return(durationFormatted[:-1])
 
-def orderNames(rawNames):
+def orderNames(rawNames, byFirst=False):
     names = []
     for i in range(0, len(rawNames)):
         name = rawNames[i][0]
@@ -49,7 +49,10 @@ def orderNames(rawNames):
         if len(nameList) < 2:
             nameList.append("")
         names.append({"first": nameList[0], "last": nameList[1]})
-    namesSorted = sorted(names, key=lambda x: (x["last"], x["first"]))
+    if byFirst:
+        namesSorted = sorted(names, key=lambda x: (x["first"], x["last"]))
+    else:
+        namesSorted = sorted(names, key=lambda x: (x["last"], x["first"]))
     namesOutput = []
     for i in range(0, len(namesSorted)):
         if namesSorted[i]["last"] == "":
@@ -1207,7 +1210,7 @@ Your device is almost ready to be tracked.
         return(output)
 
     @cherrypy.expose
-    def peoplelist(self):
+    def peoplelist(self, sortFirst='0'):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
@@ -1219,6 +1222,7 @@ Your device is almost ready to be tracked.
 </form>
 
 <h3>$peoplecount People:</h3>
+Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">last name</a><br><br>
 <div style="line-height: 2em;">$peoplelistHtml</div>
 
 </body></html>
@@ -1226,7 +1230,7 @@ Your device is almost ready to be tracked.
 
         #Get list of names
         cur.execute("SELECT name FROM people")
-        names = orderNames(cur.fetchall())
+        names = orderNames(cur.fetchall(), byFirst=(sortFirst == '1'))
 
         #Set people count
         output = output.replace("$peoplecount", str(len(names)))
@@ -1275,7 +1279,7 @@ Your device is almost ready to be tracked.
 
         conn.commit()
         conn.close()
-        return("""<meta http-equiv="refresh" content="0; url=/peoplelist" />""")
+        return("""<meta http-equiv="refresh" content="0; url=/person/""" + name + """" />""")
 
     @cherrypy.expose
     def person(self, name="John Doe"):
