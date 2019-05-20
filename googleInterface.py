@@ -35,6 +35,7 @@ try:
     conn = sql.connect(database_path)
 except:
     print('Failed to open database "' + database_path + '"')
+    exit(1)
 cur = conn.cursor()
 
 def updateSpreadsheet():
@@ -63,7 +64,7 @@ def updateSpreadsheet():
         worksheet.update_cells(currentPeopleHere)
     except:
         print("Failed to update spreadsheet. Does the client have write permissions?")
-        exit(1)
+        return
 
     #Get recent updates from database
     updateList = []
