@@ -82,7 +82,7 @@ def updateSpreadsheet():
         updateList[i]["time"] = datetime.fromtimestamp(updateList[i]["time"]).strftime("%a %-m/%-d at %-I:%M %p")
 
     #Update history range
-    cells = worksheet.range("B2:D26")
+    cells = worksheet.range("B2:D50")
     for i in range(len(cells)):
         if cells[i].col == 2:
             cells[i].value = updateList[cells[i].row - 2]["name"]
