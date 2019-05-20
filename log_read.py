@@ -2,6 +2,7 @@
 
 import time
 import sqlite3 as sql
+import googleInterface
 
 looptime = 60 #in seconds
 logpath = "/home/jaw99/Attendance_data/logs/log_read_log.log"
@@ -114,6 +115,7 @@ if __name__ == "__main__":
                             if int(data[0]) > lastUpdate:
                                 processData.append(["mac", data[1]])
             refresh(connection=conn, currentTime=currentTime, data=processData)
+            googleInterface.updateSpreadsheet()
         except:
             log("WARNING - failed to refresh")
         conn.commit()
