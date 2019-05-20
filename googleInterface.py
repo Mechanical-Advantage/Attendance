@@ -93,4 +93,4 @@ def updateSpreadsheet():
     worksheet.update_cells(cells)
 
     #Update "last update" cell
-    worksheet.update_acell("E2", datetime.now().strftime("%a %-m/%-d at %-I:%M %p"))
+    worksheet.update_acell("E2", datetime.now().strftime("%a %-m/%-d at %-I:%M:%S %p"))
