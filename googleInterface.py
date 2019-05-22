@@ -39,6 +39,10 @@ except:
 cur = conn.cursor()
 
 def updateSpreadsheet():
+    #Refresh token if neccessary
+    if creds.access_token_expired:
+        client.login()
+    
     #Get people here from database
     cur.execute("SELECT name FROM live ORDER BY name")
     live = cur.fetchall()
