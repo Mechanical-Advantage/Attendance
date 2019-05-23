@@ -48,6 +48,8 @@ def updateSpreadsheet():
     live = cur.fetchall()
     for i in range(len(live)):
         live[i] = live[i][0]
+    if len(live) == 0:
+        live.append("No one here...")
 
     #Get needed range from sheet
     currentPeopleHere = worksheet.col_values(1)
