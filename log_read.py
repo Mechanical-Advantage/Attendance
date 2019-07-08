@@ -2,6 +2,7 @@
 
 import time
 import sqlite3 as sql
+print("Authenticating w/ Google...                 ", end="\r")
 import googleInterface
 
 looptime = 60 #in seconds
@@ -115,6 +116,7 @@ if __name__ == "__main__":
                             if int(data[0]) > lastUpdate:
                                 processData.append(["mac", data[1]])
             refresh(connection=conn, currentTime=currentTime, data=processData)
+            print("Updating spreadsheet...                 ", end="\r")
             googleInterface.updateSpreadsheet()
         except:
             log("WARNING - failed to refresh")
