@@ -3,7 +3,7 @@ const displayLength = 10000
 const maxOpacity = 0.7
 const imageSelector1 = ".slideshow1"
 const imageSelector2 = ".slideshow2"
-const serverAddress = "http://192.168.1.101"
+const serverAddress = "http://192.168.2.237:8080"
 
 var currentMaxOpacity = maxOpacity
 var startTime = Date.now()

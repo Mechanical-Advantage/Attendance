@@ -1,5 +1,5 @@
 //Config
-const serverAddress = "http://192.168.1.101"
+const serverAddress = "http://192.168.2.237:8080"
 
 cycleCount = -1
 lastUpdateRaw = 0

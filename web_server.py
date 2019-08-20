@@ -9,8 +9,8 @@ import os
 from random import shuffle
 
 #Config
-port = 80
-host = '192.168.1.101'
+port = 8080
+host = '192.168.2.237'
 database = "attendance.db"
 root_main = "/home/jaw99/Attendance/"
 root_data = "/home/jaw99/Attendance_data/"

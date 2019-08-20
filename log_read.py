@@ -4,7 +4,7 @@ import time
 import sqlite3 as sql
 print("Authenticating w/ Google...                 ", end="\r")
 import googleInterface
-
+import gspread
 looptime = 60 #in seconds
 logpath = "/home/jaw99/Attendance_data/logs/log_read_log.log"
 database = "/home/jaw99/Attendance_data/attendance.db"
