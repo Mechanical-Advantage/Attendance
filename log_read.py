@@ -2,6 +2,8 @@
 
 import time
 import sqlite3 as sql
+import requests
+import slack
 print("Authenticating w/ Google...                 ", end="\r")
 import google_interface
 looptime = 60 #in seconds
@@ -59,6 +61,7 @@ def refresh(connection, currentTime, data):
                 cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (currentTime,name))
             else:
                 log("Checked in " + name)
+                slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
                 cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,currentTime))
                 cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-1)", (name,currentTime))
 
@@ -74,8 +77,10 @@ def refresh(connection, currentTime, data):
         else:
             if (currentTime-row[1]) >= 12*60*60:
                 log("Checked out " + name + " (not seen for 12 hours)")
+                slack.post(name + " was timed out at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
             else:
                 log("Checked out " + name)
+                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
             cur.execute("DELETE FROM live WHERE name=?", (name,))
             cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (round(currentTime-((threshold/2)*60)),name))
 

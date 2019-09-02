@@ -1,6 +1,7 @@
 import time
 import datetime
 import cherrypy
+import slack
 import sqlite3 as sql
 import math
 import subprocess
@@ -906,21 +907,23 @@ $contents
             output = output.replace("$name", name)
         else:
             #Get time
-            time = currentTime()
+            now = currentTime()
 
             #Update database
             if func == "signin":
                 cur.execute("SELECT * FROM live WHERE name=?", (name,))
                 if len(cur.fetchall()) != 0:
-                    cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (time,name))
+                    cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (now,name))
                     cur.execute("UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
                 else:
-                    cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,time))
-                    cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,time))
+                    cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,now))
+                    cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,now))
+                    slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
             elif func == "signout":
                 cur.execute("DELETE FROM live WHERE name=?", (name,))
-                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (time,name))
-                cur.execute("INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name,time))
+                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now,name))
+                cur.execute("INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name,now))
+                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
