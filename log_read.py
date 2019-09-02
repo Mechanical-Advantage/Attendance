@@ -3,11 +3,10 @@
 import time
 import sqlite3 as sql
 print("Authenticating w/ Google...                 ", end="\r")
-import googleInterface
-import gspread
+import google_interface
 looptime = 60 #in seconds
-logpath = "/home/jaw99/Attendance_data/logs/log_read_log.log"
-database = "/home/jaw99/Attendance_data/attendance.db"
+logpath = "/home/attendance/Attendance_data/logs/log_read_log.log"
+database = "/home/attendance/Attendance_data/attendance.db"
 
 def log(message):
     fullMessage = "[" + time.strftime("%a %m-%d-%Y at %I:%M:%S %p") + "] " + message
@@ -97,7 +96,7 @@ if __name__ == "__main__":
 
             #Read log file
             i = 0
-            with open("/home/jaw99/python/probemon/probemon.log") as f:
+            with open("/home/attendance/Attendance_data/logs/monitor.log") as f:
                 while True:
                     i += 1
                     try:
@@ -107,20 +106,20 @@ if __name__ == "__main__":
                     else:
                         if not lineval:
                             break
-                        data = lineval.split('\t')
+                        data = lineval.split(" : ")
                         try:
                             int(data[0])
                         except:
                             x = 0 #Need to have code here, to create valid 'except'
                         else:
                             if int(data[0]) > lastUpdate:
-                                processData.append(["mac", data[1]])
+                                processData.append(["mac", data[2][:-1]])
             refresh(connection=conn, currentTime=currentTime, data=processData)
+            conn.commit()
             print("Updating spreadsheet...                 ", end="\r")
-            googleInterface.updateSpreadsheet()
+            google_interface.updateSpreadsheet()
         except:
             log("WARNING - failed to refresh")
-        conn.commit()
         conn.close()
 
         for i in range(0, looptime):

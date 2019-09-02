@@ -4,9 +4,9 @@ import sqlite3 as sql
 from operator import itemgetter
 from datetime import datetime
 
-cred_path = "/home/jaw99/Attendance_data/googleCredentials.json"
+cred_path = "/home/attendance/Attendance_data/google_credentials.json"
 spreadsheet_name = "6328 Attendance"
-database_path = "/home/jaw99/Attendance_data/attendance.db"
+database_path = "/home/attendance/Attendance_data/attendance.db"
 
 #Connect to sheet
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]

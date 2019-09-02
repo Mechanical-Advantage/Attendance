@@ -1,6 +1,4 @@
 //Config
-const serverAddress = "http://192.168.2.237:8080"
-
 cycleCount = -1
 lastUpdateRaw = 0
 lastUpdateKnown = false
@@ -28,7 +26,7 @@ function reloadLastUpdate() {
       }
     }
 
-    http.open("GET", serverAddress + "/lastUpdate")
+    http.open("GET", "/lastUpdate")
     http.send()
   }
 

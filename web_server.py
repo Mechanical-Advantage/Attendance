@@ -9,19 +9,15 @@ import os
 from random import shuffle
 
 #Config
-port = 8080
-host = '192.168.2.237'
+port = 8000
+host = '0.0.0.0'
 database = "attendance.db"
-root_main = "/home/jaw99/Attendance/"
-root_data = "/home/jaw99/Attendance_data/"
+root_main = "/home/attendance/Attendance/"
+root_data = "/home/attendance/Attendance_data/"
 
 #Setup
 database = root_data + database
 languageManager = inflect.engine()
-if port == 80:
-    host_full = host
-else:
-    host_full = host + ":" + str(port)
 
 def currentTime():
     return(int(round(time.time())))
@@ -1037,7 +1033,7 @@ What is your $description's MAC address? <input type="text" name="mac">
         outputAuto = """
 Next, please go to a web browser on your $description and type in the address:<br><br>
 
-<div style="font-family: monospace;">http://$host/add</div>
+<div style="font-family: monospace;">http://attendance.local/add</div>
 
 <br>You must be connected to the HS-Access or HS-Access_5GHz network.
 <br><br><a href="/manual_addDevice_stage3?name=$name&deviceType=$deviceType&description=$description&forceManual=1" class="show">I can't do that</a>
@@ -1094,7 +1090,6 @@ Next, please go to a web browser on your $description and type in the address:<b
 
         else: #Auto entry
             output = output.replace("$content", outputAuto)
-            output = output.replace("$host", host_full)
             conn = sql.connect(database)
             cur = conn.cursor()
             cur.execute("DELETE FROM addDevice")
