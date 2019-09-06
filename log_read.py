@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import time
+import datetime
 import sqlite3 as sql
 import requests
 import slack
@@ -61,7 +62,7 @@ def refresh(connection, currentTime, data):
                 cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (currentTime,name))
             else:
                 log("Checked in " + name)
-                slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (A)")
                 cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,currentTime))
                 cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-1)", (name,currentTime))
 
@@ -75,14 +76,16 @@ def refresh(connection, currentTime, data):
         if status == -2 and (currentTime-row[1]) < 12*60*60:
             log("Skipped checking out " + name + " (signed in manually)")
         else:
+            cur.execute("DELETE FROM live WHERE name=?", (name,))
             if (currentTime-row[1]) >= 12*60*60:
                 log("Checked out " + name + " (not seen for 12 hours)")
-                slack.post(name + " was timed out at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                slack.post(name + " was timed out at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (A)")
+                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (currentTime,name))
             else:
                 log("Checked out " + name)
-                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
-            cur.execute("DELETE FROM live WHERE name=?", (name,))
-            cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (round(currentTime-((threshold/2)*60)),name))
+                checkOutTime = round(currentTime-((threshold/2)*60))
+                slack.post(name + " left at " + datetime.fromtimestamp(checkOutTime).strftime("%-I:%M %p on %a %-m/%-d") + " (A)")
+                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (checkOutTime,name))
 
 if __name__ == "__main__":
     while True:
