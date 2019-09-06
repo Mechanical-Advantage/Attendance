@@ -918,12 +918,12 @@ $contents
                 else:
                     cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,now))
                     cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,now))
-                    slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                    slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (M)")
             elif func == "signout":
                 cur.execute("DELETE FROM live WHERE name=?", (name,))
                 cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now,name))
                 cur.execute("INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name,now))
-                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (M)")
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
