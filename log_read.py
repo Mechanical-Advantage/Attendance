@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import time
-import datetime
+from datetime import datetime
 import sqlite3 as sql
 import requests
 import slack
