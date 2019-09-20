@@ -12,6 +12,7 @@ interfaces = {
 "BELKIN": "wlx00173f847fbf",
 "PROXIM": "wlx0020a6f69098"
 }
+no_log = ["c4:17:fe:af:5d:a5", "00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"] #INTERN, BELKIN, PROXIM
 
 mon_interfaces = {}
 def start_monitor(code, interface):
@@ -44,11 +45,13 @@ def monitor(code, interface):
 		def process(packet):
 			try:
 				text = str(round(time.time())) + " : " + code + " : " + packet.wlan.sa_resolved
+				should_log = packet.wlan.sa_resolved not in no_log
 			except:
 				x = 0
 			else:
-				print(text)
-				log.write(text + "\n")
+				if should_log:
+					print(text)
+					log.write(text + "\n")
 		capture = pyshark.LiveCapture(interface=mon_interfaces[code])
 		capture.apply_on_packets(process)
 
