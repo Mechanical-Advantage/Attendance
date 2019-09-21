@@ -5,7 +5,7 @@ from datetime import datetime
 
 #Config
 log_db = "logs.db"
-main_db = "Attendance_data/attendance.db"
+main_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/attendance.db"
 time_config = {
     "live_threshold": 40, #minutes, amount of time since last detection before removed from live
     "auto_extension": 15, #minutes, amount of time automatic visits are extended past last detection
@@ -206,5 +206,5 @@ def get_live(now):
 if __name__ == "__main__":
     #print_visits(get_range(1562731200, 1562817600))
     #print_visits(get_range(1567569600, 1567656000))
-    #print_visits(get_range(0, 2000000000, debug=True))
-    print(get_live(1568936984))
+    print_visits(get_range(0, 2000000000, debug=True))
+    #print(get_live(1568936984))

@@ -26,7 +26,7 @@ function reloadLastUpdate() {
       }
     }
 
-    http.open("GET", "/lastUpdate")
+    http.open("GET", "/last_update")
     http.send()
   }
 

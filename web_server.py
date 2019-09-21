@@ -1,7 +1,7 @@
 import time
 import datetime
 import cherrypy
-import slack
+import recordkeeper
 import sqlite3 as sql
 import math
 import subprocess
@@ -9,64 +9,70 @@ import inflect
 import os
 from random import shuffle
 
-#Config
+# Config
 port = 8000
 host = '0.0.0.0'
 database = "attendance.db"
-root_main = "/home/attendance/Attendance/"
-root_data = "/home/attendance/Attendance_data/"
+root_main = "/Users/jonah/Documents/Attendance/"
+root_data = "/Users/jonah/Documents/Attendance_test/Attendance_data/"
 
-#Setup
+# Setup
 database = root_data + database
-languageManager = inflect.engine()
+language_manager = inflect.engine()
 
-def currentTime():
+
+def current_time():
     return(int(round(time.time())))
 
-def formatDuration(duration, showSeconds):
-    tempDuration = duration
-    hours = math.floor(tempDuration/3600)
-    tempDuration -= hours*3600
-    minutes = math.floor(tempDuration/60)
-    seconds = tempDuration - minutes*60
-    durationFormatted = ""
+
+def format_duration(duration, show_seconds):
+    temp_duration = duration
+    hours = math.floor(temp_duration/3600)
+    temp_duration -= hours*3600
+    minutes = math.floor(temp_duration/60)
+    seconds = temp_duration - minutes*60
+    duration_formatted = ""
     if hours > 0:
-        durationFormatted = str(hours) + "h "
+        duration_formatted = str(hours) + "h "
     if minutes > 0:
-        durationFormatted = durationFormatted + str(minutes) + "m "
-    if showSeconds:
-        durationFormatted = durationFormatted + str(seconds) + "s "
-    return(durationFormatted[:-1])
+        duration_formatted = duration_formatted + str(minutes) + "m "
+    if show_seconds:
+        duration_formatted = duration_formatted + str(seconds) + "s "
+    return(duration_formatted[:-1])
 
-def orderNames(rawNames, byFirst=False):
+
+def order_names(raw_names, by_first=False):
     names = []
-    for i in range(0, len(rawNames)):
-        name = rawNames[i][0]
-        nameList = name.split(" ")
-        if len(nameList) < 2:
-            nameList.append("")
-        names.append({"first": nameList[0], "last": nameList[1]})
-    if byFirst:
-        namesSorted = sorted(names, key=lambda x: (x["first"], x["last"]))
+    for i in range(0, len(raw_names)):
+        name = raw_names[i][0]
+        name_list = name.split(" ")
+        if len(name_list) < 2:
+            name_list.append("")
+        names.append({"first": name_list[0], "last": name_list[1]})
+    if by_first:
+        names_sorted = sorted(names, key=lambda x: (x["first"], x["last"]))
     else:
-        namesSorted = sorted(names, key=lambda x: (x["last"], x["first"]))
-    namesOutput = []
-    for i in range(0, len(namesSorted)):
-        if namesSorted[i]["last"] == "":
-            namesOutput.append(namesSorted[i]["first"])
+        names_sorted = sorted(names, key=lambda x: (x["last"], x["first"]))
+    names_output = []
+    for i in range(0, len(names_sorted)):
+        if names_sorted[i]["last"] == "":
+            names_output.append(names_sorted[i]["first"])
         else:
-            namesOutput.append(namesSorted[i]["first"] + " " + namesSorted[i]["last"])
-    return(namesOutput)
+            names_output.append(
+                names_sorted[i]["first"] + " " + names_sorted[i]["last"])
+    return(names_output)
 
-def javascriptDate(date, noTime=False):
-    newDate = time.localtime(date)
-    year = time.strftime("%Y", newDate)
-    month = str(int(time.strftime("%m", newDate)) - 1)
-    if noTime:
-        day_hour_minute = time.strftime("%d", newDate)
+
+def javascript_date(date, no_time=False):
+    new_date = time.localtime(date)
+    year = time.strftime("%Y", new_date)
+    month = str(int(time.strftime("%m", new_date)) - 1)
+    if no_time:
+        day_hour_minute = time.strftime("%d", new_date)
     else:
-        day_hour_minute = time.strftime("%d, %H, %M", newDate)
+        day_hour_minute = time.strftime("%d, %H, %M", new_date)
     return("new Date(" + year + ", " + month + ", " + day_hour_minute + ")")
+
 
 def title(display):
     uppers = {}
@@ -79,20 +85,22 @@ def title(display):
     display = "".join(display)
     return(display)
 
-def formatList(inputList, separator):
+
+def format_list(input_list, separator):
     output = ""
-    for i in range(0, len(inputList)):
-        output = output + inputList[i]
-        if i != len(inputList) - 1:
-            if len(inputList) == 2:
+    for i in range(0, len(input_list)):
+        output = output + input_list[i]
+        if i != len(input_list) - 1:
+            if len(input_list) == 2:
                 output = output + " "
             else:
                 output = output + ", "
-        if i == len(inputList) - 2:
+        if i == len(input_list) - 2:
             output = output + separator + " "
     return(output)
 
-class mainServer(object):
+
+class main_server(object):
     @cherrypy.expose
     def index(self):
         conn = sql.connect(database)
@@ -108,8 +116,8 @@ iframe {
 <script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
-<form method="get" action="/getRecords">
-<input type="date" name="startDate" value="$startValue"> to <input type="date" name="endDate" value="$endValue"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
+<form method="get" action="/get_records">
+<input type="date" name="start_date" value="$start_value"> to <input type="date" name="end_date" value="$end_value"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
 <button type="submit">Get Records</button>
 </form>
 
@@ -133,25 +141,26 @@ function reloadLive() {
 </body></html>
         """
 
-        #Generate name selector
+        # Generate name selector
         cur.execute("SELECT name FROM people")
-        names = orderNames(cur.fetchall())
-        tempSelectionHtml = ""
+        names = order_names(cur.fetchall())
+        temp_selection_html = ""
         for i in range(0, len(names)):
-            tempSelectionHtml = tempSelectionHtml + "<option value=\"" + names[i] + "\">" + names[i] + "</option>"
-        output = output.replace("$selectionHtml", tempSelectionHtml)
+            temp_selection_html = temp_selection_html + "<option value=\"" + \
+                names[i] + "\">" + names[i] + "</option>"
+        output = output.replace("$selectionHtml", temp_selection_html)
 
-        #Fill in dates from sessions
+        # Fill in dates from sessions
         if "lastStartDate" in cherrypy.session:
-            startValue = cherrypy.session["lastStartDate"]
+            start_value = cherrypy.session["lastStartDate"]
         else:
-            startValue = time.strftime("%Y-%m-%d")
-        output = output.replace("$startValue", startValue)
+            start_value = time.strftime("%Y-%m-%d")
+        output = output.replace("$start_value", start_value)
         if "lastEndDate" in cherrypy.session:
-            endValue = cherrypy.session["lastEndDate"]
+            end_value = cherrypy.session["lastEndDate"]
         else:
-            endValue = time.strftime("%Y-%m-%d")
-        output = output.replace("$endValue", endValue)
+            end_value = time.strftime("%Y-%m-%d")
+        output = output.replace("$end_value", end_value)
 
         conn.close()
         return(output)
@@ -196,55 +205,57 @@ refresh();
 </script>
 </head><body>
 <a href="/">< Return</a><br><br>
-<form id="mainForm" method="get" action="/getRecords">
-Start date: <input type="date" name="startDate" value="$startValue"><br>
-End date: <input type="date" name="endDate" value="$endValue">
+<form id="mainForm" method="get" action="/get_records">
+Start date: <input type="date" name="start_date" value="$start_value"><br>
+End date: <input type="date" name="end_date" value="$end_value">
 </form>
 <button onclick="setChecks(true);">Check All</button><button onclick="setChecks(false);">Uncheck All</button><br><br>
 
-$checkHtml
+$check_html
 
 <input form="mainForm" type="hidden" name="filter" id="output">
-<input form="mainForm" type="hidden" name="fromAdvanced" value="1">
+<input form="mainForm" type="hidden" name="from_advance" value="1">
 <button form="mainForm" type="submit">Get Records</button>
 
 </body></html>
         """
-        #Get list of categories
+        # Get list of categories
         cur.execute("SELECT * FROM possibleCategories")
         names = cur.fetchall()
-        cleanNames = []
+        clean_names = []
         for i in range(0, len(names)):
-            cleanNames.append(names[i][0])
-            names[i] = languageManager.plural(names[i][0])
+            clean_names.append(names[i][0])
+            names[i] = language_manager.plural(names[i][0])
 
-        #Get list of people
+        # Get list of people
         cur.execute("SELECT name FROM people")
-        peoplelist = orderNames(cur.fetchall())
+        peoplelist = order_names(cur.fetchall())
         names.extend(peoplelist)
-        cleanNames.extend(peoplelist)
+        clean_names.extend(peoplelist)
 
-        #Add names to javascript
-        output = output.replace("$namelist", str(cleanNames).replace("'", '"'))
+        # Add names to javascript
+        output = output.replace("$namelist", str(
+            clean_names).replace("'", '"'))
 
-        #Add names to html
-        checkHtml = ""
+        # Add names to html
+        check_html = ""
         for i in range(0, len(names)):
             display = title(names[i])
-            checkHtml = checkHtml + '<label class="check"><input type="checkbox" class="check" onclick="refresh()" id="check' + str(i) + '"> ' + display + '</label><br>'
-        output = output.replace("$checkHtml", checkHtml)
+            check_html = check_html + '<label class="check"><input type="checkbox" class="check" onclick="refresh()" id="check' + \
+                str(i) + '"> ' + display + '</label><br>'
+        output = output.replace("$check_html", check_html)
 
-        #Fill in dates from sessions
+        # Fill in dates from sessions
         if "lastStartDate" in cherrypy.session:
-            startValue = cherrypy.session["lastStartDate"]
+            start_value = cherrypy.session["lastStartDate"]
         else:
-            startValue = time.strftime("%Y-%m-%d")
-        output = output.replace("$startValue", startValue)
+            start_value = time.strftime("%Y-%m-%d")
+        output = output.replace("$start_value", start_value)
         if "lastEndDate" in cherrypy.session:
-            endValue = cherrypy.session["lastEndDate"]
+            end_value = cherrypy.session["lastEndDate"]
         else:
-            endValue = time.strftime("%Y-%m-%d")
-        output = output.replace("$endValue", endValue)
+            end_value = time.strftime("%Y-%m-%d")
+        output = output.replace("$end_value", end_value)
 
         conn.close()
         return(output)
@@ -291,27 +302,27 @@ left: 0px;
 }
             """)
 
-        #Get list of live names
+        # Get list of live names
         cur.execute("SELECT name FROM live")
-        rows = orderNames(cur.fetchall())
+        rows = order_names(cur.fetchall())
 
-        #Generate table html
-        tempTableHtml = "<tr>"
+        # Generate table html
+        temp_table_html = "<tr>"
         i = -1
         for row in rows:
             i += 1
             if i % 5 == 0:
                 if i != 0:
-                    tempTableHtml = tempTableHtml + "</tr><tr>"
-            tempTableHtml = tempTableHtml + "<td class=\"names\">" + row + "</td>"
-        tempTableHtml = tempTableHtml + "</tr>"
-        output = output.replace("$tableHtml", tempTableHtml)
+                    temp_table_html = temp_table_html + "</tr><tr>"
+            temp_table_html = temp_table_html + "<td class=\"names\">" + row + "</td>"
+        temp_table_html = temp_table_html + "</tr>"
+        output = output.replace("$tableHtml", temp_table_html)
 
         conn.close()
         return(output)
 
     @cherrypy.expose
-    def lastUpdate(self):
+    def last_update(self):
         conn = sql.connect(database)
         cur = conn.cursor()
         cur.execute("SELECT * FROM lastUpdate")
@@ -320,7 +331,7 @@ left: 0px;
         return(time)
 
     @cherrypy.expose
-    def getRecords(self, startDate="", endDate="", filter="*", fromAdvanced="0"):
+    def get_records(self, start_date="", end_date="", filter="*", from_advanced="0"):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
@@ -364,7 +375,7 @@ $timelineDiv
 </body></html>
         """
 
-        pieScript = """
+        pie_script = """
 <script type="text/javascript">
   google.charts.setOnLoadCallback(drawChart);
   function drawChart() {
@@ -382,9 +393,9 @@ $timelineDiv
 </script>
         """
 
-        pieDiv = """<br><div id="piechart" style="height: 500px; width: 100%;"></div>"""
+        pie_div = """<br><div id="piechart" style="height: 500px; width: 100%;"></div>"""
 
-        catPieScript = """
+        cat_pie_script = """
 <script type="text/javascript">
   google.charts.setOnLoadCallback(drawChart);
   function drawChart() {
@@ -402,9 +413,9 @@ $timelineDiv
 </script>
         """
 
-        catPieDiv = """<br><div id="catpiechart" style="height: 500px; width: 100%;"></div>"""
+        cat_pie_div = """<br><div id="catpiechart" style="height: 500px; width: 100%;"></div>"""
 
-        histogramScript = """
+        histogram_script = """
 <script type="text/javascript">
   google.charts.setOnLoadCallback(drawChart);
   function drawChart() {
@@ -423,9 +434,9 @@ $timelineDiv
 </script>
         """
 
-        histogramDiv = """<br><div id="histogram" style="height: 500px; width: 100%;"></div>"""
+        histogram_div = """<br><div id="histogram" style="height: 500px; width: 100%;"></div>"""
 
-        calendarScript = """
+        calendar_script = """
 <script type="text/javascript">
   google.charts.setOnLoadCallback(drawChart);
   function drawChart() {
@@ -444,9 +455,9 @@ $timelineDiv
 </script>
         """
 
-        calendarDiv = """<br><div id="calendar" style="height: 500px; width: 100%;"></div>"""
+        calendar_div = """<br><div id="calendar" style="height: 500px; width: 100%;"></div>"""
 
-        timelineScript = """
+        timeline_script = """
 <script type="text/javascript">
   google.charts.setOnLoadCallback(drawChart);
   function drawChart() {
@@ -471,92 +482,95 @@ $timelineDiv
 </script>
         """
 
-        timelineDiv = """<br><div id="timeline" style="height: 100%;"></div>"""
+        timeline_div = """<br><div id="timeline" style="height: 100%;"></div>"""
 
-        def getError(error, output):
+        def get_error(error, output):
             conn.close()
-            tempOutput = output
-            tempOutput = tempOutput.replace("$timelineScript", "")
-            tempOutput = tempOutput.replace("$timelineDiv", "")
-            tempOutput = tempOutput.replace("$pieScript", "")
-            tempOutput = tempOutput.replace("$pieDiv", "")
-            tempOutput = tempOutput.replace("$catPieScript", "")
-            tempOutput = tempOutput.replace("$catPieDiv", "")
-            tempOutput = tempOutput.replace("$calendarScript", "")
-            tempOutput = tempOutput.replace("$calendarDiv", "")
-            tempOutput = tempOutput.replace("$histogramScript", "")
-            tempOutput = tempOutput.replace("$histogramDiv", "")
-            tempOutput = tempOutput.replace("$contents", error)
-            tempOutput = tempOutput.replace("$returnLink", "/")
-            return(tempOutput)
+            temp_output = output
+            temp_output = temp_output.replace("$timelineScript", "")
+            temp_output = temp_output.replace("$timelineDiv", "")
+            temp_output = temp_output.replace("$pieScript", "")
+            temp_output = temp_output.replace("$pieDiv", "")
+            temp_output = temp_output.replace("$catPieScript", "")
+            temp_output = temp_output.replace("$catPieDiv", "")
+            temp_output = temp_output.replace("$calendarScript", "")
+            temp_output = temp_output.replace("$calendarDiv", "")
+            temp_output = temp_output.replace("$histogramScript", "")
+            temp_output = temp_output.replace("$histogramDiv", "")
+            temp_output = temp_output.replace("$contents", error)
+            temp_output = temp_output.replace("$returnLink", "/")
+            return(temp_output)
 
-        #Update session data
-        cherrypy.session["lastStartDate"] = startDate
-        cherrypy.session["lastEndDate"] = endDate
+        # Update session data
+        cherrypy.session["lastStartDate"] = start_date
+        cherrypy.session["lastEndDate"] = end_date
 
-        #Create unix timestamp from input
+        # Create unix timestamp from input
         try:
-            startDate = time.mktime(datetime.datetime.strptime(startDate, "%Y-%m-%d").timetuple()) - (5*60*60)
-            endDate = time.mktime(datetime.datetime.strptime(endDate, "%Y-%m-%d").timetuple()) + (19*60*60)
+            start_date = time.mktime(datetime.datetime.strptime(
+                start_date, "%Y-%m-%d").timetuple()) - (5*60*60)
+            end_date = time.mktime(datetime.datetime.strptime(
+                end_date, "%Y-%m-%d").timetuple()) + (19*60*60)
         except:
-            return(getError("Please enter a valid start and end date.", output))
-        startDate = startDate + time.timezone
-        endDate = endDate + time.timezone
+            return(get_error("Please enter a valid start and end date.", output))
+        start_date = start_date + time.timezone
+        end_date = end_date + time.timezone
 
-        #Check that range is valid
-        if endDate<startDate:
+        # Check that range is valid
+        if end_date < start_date:
             conn.close()
-            return(getError("End date is before start date.", output))
+            return(get_error("End date is before start date.", output))
 
-        #Create list of names
+        # Create list of names
         if filter == "*":
             cur.execute("SELECT * FROM people")
-            names = orderNames(cur.fetchall())
+            names = order_names(cur.fetchall())
         else:
             names = []
 
-            #Get categories
+            # Get categories
             cur.execute("SELECT * FROM possibleCategories")
             categories = cur.fetchall()
             for i in range(0, len(categories)):
                 categories[i] = categories[i][0]
 
-            #Iterate through input (if category, add names from category. if name, add to list)
-            inputList = filter.split(",")
-            for i in range(0, len(inputList)):
-                if inputList[i] in categories:
-                    cur.execute("SELECT name FROM categories WHERE category=?", (inputList[i],))
-                    namesInCat = cur.fetchall()
-                    for f in range(0, len(namesInCat)):
-                        if namesInCat[f][0] not in names:
-                            names.append(namesInCat[f][0])
+            # Iterate through input (if category, add names from category. if name, add to list)
+            input_list = filter.split(",")
+            for i in range(0, len(input_list)):
+                if input_list[i] in categories:
+                    cur.execute(
+                        "SELECT name FROM categories WHERE category=?", (input_list[i],))
+                    names_in_cat = cur.fetchall()
+                    for f in range(0, len(names_in_cat)):
+                        if names_in_cat[f][0] not in names:
+                            names.append(names_in_cat[f][0])
                 else:
-                    if inputList[i] not in names:
-                        names.append(inputList[i])
+                    if input_list[i] not in names:
+                        names.append(input_list[i])
 
-        #Get matching records from history
-        cur.execute("SELECT * FROM history WHERE timeIn>? AND timeIn<?", (startDate,endDate))
-        rowsTemp = cur.fetchall()
+        # Get matching records from history
+        cur.execute("SELECT * FROM history WHERE timeIn>? AND timeIn<?", (start_date, end_date))
+        rows_temp = cur.fetchall()
         rows = []
-        for i in range(0, len(rowsTemp)):
-            if rowsTemp[i][0] in names:
-                rows.append(rowsTemp[i])
+        for i in range(0, len(rows_temp)):
+            if rows_temp[i][0] in names:
+                rows.append(rows_temp[i])
         rows = sorted(rows, key=lambda x: (x[0], x[1]))
 
-        #Determine if single or multiple days and add appropriate graphs
+        # Determine if single or multiple days and add appropriate graphs
 
-        #Pie chart -> multple people, any # of days
-        #Histogram -> any # of poeple, any # of days, more than one entry
-        #Calendar -> any # of people, multiple days
-        #Timeline -> multiple people, single day
+        # Pie chart -> multple people, any # of days
+        # Histogram -> any # of poeple, any # of days, more than one entry
+        # Calendar -> any # of people, multiple days
+        # Timeline -> multiple people, 1-4 days
         if len(names) > 1:
-            gen_pieChart = True
-            output = output.replace("$pieScript", pieScript)
-            output = output.replace("$pieDiv", pieDiv)
-            output = output.replace("$catPieScript", catPieScript)
-            output = output.replace("$catPieDiv", catPieDiv)
+            gen_piechart = True
+            output = output.replace("$pieScript", pie_script)
+            output = output.replace("$pieDiv", pie_div)
+            output = output.replace("$catPieScript", cat_pie_script)
+            output = output.replace("$catPieDiv", cat_pie_div)
         else:
-            gen_pieChart = False
+            gen_piechart = False
             output = output.replace("$pieScript", "")
             output = output.replace("$pieDiv", "")
             output = output.replace("$catPieScript", "")
@@ -564,27 +578,27 @@ $timelineDiv
 
         if len(rows) > 1:
             gen_histogram = True
-            output = output.replace("$histogramScript", histogramScript)
-            output = output.replace("$histogramDiv", histogramDiv)
+            output = output.replace("$histogramScript", histogram_script)
+            output = output.replace("$histogramDiv", histogram_div)
         else:
             gen_histogram = False
             output = output.replace("$histogramScript", "")
             output = output.replace("$histogramDiv", "")
 
-        if endDate - startDate <= (60*60*25):
-            singleDay = True
+        if end_date - start_date <= (60*60*25):
+            single_day = True
             output = output.replace("$calendarScript", "")
             output = output.replace("$calendarDiv", "")
         else:
-            singleDay = False
-            output = output.replace("$calendarScript", calendarScript)
-            output = output.replace("$calendarDiv", calendarDiv)
+            single_day = False
+            output = output.replace("$calendarScript", calendar_script)
+            output = output.replace("$calendarDiv", calendar_div)
 
-        if endDate - startDate <= (60*60*25*4):
+        if end_date - start_date <= (60*60*25*4):
             if len(names) > 1:
                 gen_timeline = True
-                output = output.replace("$timelineScript", timelineScript)
-                output = output.replace("$timelineDiv", timelineDiv)
+                output = output.replace("$timelineScript", timeline_script)
+                output = output.replace("$timelineDiv", timeline_div)
             else:
                 gen_timeline = False
                 output = output.replace("$timelineScript", "")
@@ -594,142 +608,154 @@ $timelineDiv
             output = output.replace("$timelineScript", "")
             output = output.replace("$timelineDiv", "")
 
-        #Generate table contents
-        dateFormat = "%a %m/%d - %I:%M %p"
-        tempContents = "<table><tr><th>Name</th><th>Time In</th><th>Time Out</th><th>Duration</th>"
-        totalDuration = 0
+        # Generate table contents
+        date_format = "%a %m/%d - %I:%M %p"
+        temp_contents = "<table><tr><th>Name</th><th>Time In</th><th>Time Out</th><th>Duration</th>"
+        total_duration = 0
 
-        internalPieData = {}
-        histogramData = [['Name', 'Hours']]
+        internal_pie_data = {}
+        histogram_data = [['Name', 'Hours']]
         rowid = 0
-        extraRowCount = 0
+        extra_row_count = 0
         for row in rows:
             rowid += 1
             if row[2] < 0:
-                timeOutFormatted = "Still here"
-                rawDuration = round(time.time()) - row[1]
+                timeout_formatted = "Still here"
+                raw_duration = round(time.time()) - row[1]
             else:
-                timeOutFormatted = time.strftime(dateFormat, time.localtime(row[2]))
-                rawDuration = row[2] - row[1]
-            timeInFormatted = time.strftime(dateFormat, time.localtime(row[1]))
+                timeout_formatted = time.strftime(
+                    date_format, time.localtime(row[2]))
+                raw_duration = row[2] - row[1]
+            timein_formatted = time.strftime(date_format, time.localtime(row[1]))
 
-            #Add to total for pie chart
-            if row[0] not in internalPieData:
-                internalPieData[row[0]] = 0
-            internalPieData[row[0]] += rawDuration
+            # Add to total for pie chart
+            if row[0] not in internal_pie_data:
+                internal_pie_data[row[0]] = 0
+            internal_pie_data[row[0]] += raw_duration
 
-            #Record for histogram
-            histogramData.append([row[0], rawDuration])
+            # Record for histogram
+            histogram_data.append([row[0], raw_duration])
 
-            #Format Duration
-            totalDuration += rawDuration
-            durationFormatted = formatDuration(rawDuration, showSeconds=False)
+            # Format Duration
+            total_duration += raw_duration
+            duration_formatted = format_duration(raw_duration, show_seconds=False)
 
-            #Get class
+            # Get class
             if rowid > 25:
                 rowclass = ' class="extraRow"'
-                extraRowCount += 1
+                extra_row_count += 1
             else:
                 rowclass = ""
 
-            tempContents = tempContents + '<tr' + rowclass + '><td><a class="hidden" href="/person/' + row[0] + '">' + row[0] + "</a></td><td>" + timeInFormatted + "</td><td>" + timeOutFormatted + "</td><td>" + durationFormatted + "</td></tr>"
+            temp_contents = temp_contents + '<tr' + rowclass + '><td><a class="hidden" href="/person/' + \
+                row[0] + '">' + row[0] + "</a></td><td>" + timein_formatted + "</td><td>" + \
+                timeout_formatted + "</td><td>" + duration_formatted + "</td></tr>"
 
-        tempContents = tempContents + "</table>"
-        if extraRowCount > 0:
-            if extraRowCount == 1:
+        temp_contents = temp_contents + "</table>"
+        if extra_row_count > 0:
+            if extra_row_count == 1:
                 rowname = "Row"
             else:
                 rowname = "Rows"
-            tempContents = tempContents + '<div id="showAllLink"><br><a href="javascript:showAll()">Show ' + str(extraRowCount) + ' More ' + rowname + '</a></div>'
+            temp_contents = temp_contents + '<div id="showAllLink"><br><a href="javascript:showAll()">Show ' + \
+                str(extra_row_count) + ' More ' + rowname + '</a></div>'
 
-        #Generate title
-        titleDateFormat = "%a %m/%d"
-        if singleDay:
-            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " (" + formatDuration(totalDuration, showSeconds=False) + " total time)</h3>"
+        # Generate title
+        title_date_format = "%a %m/%d"
+        if single_day:
+            temp_title = "<h3>" + time.strftime(title_date_format, time.localtime(
+                start_date)) + " (" + format_duration(total_duration, show_seconds=False) + " total time)</h3>"
         else:
-            tempTitle = "<h3>" + time.strftime(titleDateFormat, time.localtime(startDate)) + " to " + time.strftime(titleDateFormat, time.localtime(endDate - 1)) + " (" + formatDuration(totalDuration, showSeconds=False) + " total time)</h3>"
+            temp_title = "<h3>" + time.strftime(title_date_format, time.localtime(start_date)) + " to " + time.strftime(
+                title_date_format, time.localtime(end_date - 1)) + " (" + format_duration(total_duration, show_seconds=False) + " total time)</h3>"
 
-        #Generate pie chart
-        if gen_pieChart:
-            pieData = [['Name', 'Hours']]
-            for person, seconds in internalPieData.items():
-                pieData.append([person, (seconds/60/60)])
-            output = output.replace("$pieData", str(pieData))
+        # Generate pie chart
+        if gen_piechart:
+            pie_data = [['Name', 'Hours']]
+            for person, seconds in internal_pie_data.items():
+                pie_data.append([person, (seconds/60/60)])
+            output = output.replace("$pieData", str(pie_data))
 
-            #Generate category pie chart
-            categoryPieData = {}
-            for person, seconds in internalPieData.items():
-                cur.execute("SELECT category FROM categories WHERE name=? ORDER BY category", (person,))
+            # Generate category pie chart
+            category_pie_data = {}
+            for person, seconds in internal_pie_data.items():
+                cur.execute(
+                    "SELECT category FROM categories WHERE name=? ORDER BY category", (person,))
                 categories = cur.fetchall()
                 for i in range(0, len(categories)):
-                    categories[i] = title(languageManager.plural(categories[i][0]))
+                    categories[i] = title(
+                        language_manager.plural(categories[i][0]))
                 if len(categories) == 0:
-                    categoriesString = "Unclassified"
+                    categories_string = "Unclassified"
                 else:
-                    categoriesString = formatList(categories, "and")
+                    categories_string = format_list(categories, "and")
 
-                if categoriesString in categoryPieData:
-                    categoryPieData[categoriesString] += seconds
+                if categories_string in category_pie_data:
+                    category_pie_data[categories_string] += seconds
                 else:
-                    categoryPieData[categoriesString] = seconds
+                    category_pie_data[categories_string] = seconds
 
-            pieData = [['Category', 'Hours']]
-            for category, seconds in categoryPieData.items():
-                pieData.append([category, (seconds/60/60)])
-            output = output.replace("$catPieData", str(pieData))
+            pie_data = [['Category', 'Hours']]
+            for category, seconds in category_pie_data.items():
+                pie_data.append([category, (seconds/60/60)])
+            output = output.replace("$catPieData", str(pie_data))
 
-        #Generate histogram
+        # Generate histogram
         if gen_histogram:
-            for i in range(1, len(histogramData)):
-                histogramData[i][1] = histogramData[i][1]/60/60
-            output = output.replace("$histogramData", str(histogramData))
+            for i in range(1, len(histogram_data)):
+                histogram_data[i][1] = histogram_data[i][1]/60/60
+            output = output.replace("$histogramData", str(histogram_data))
 
-        #Generate calendar (create totals)
-        if singleDay == False:
-            tempCalendarData = {}
+        # Generate calendar (create totals)
+        if single_day == False:
+            temp_calendar_data = {}
             for row in rows:
                 if row[2] < 0:
-                    rawDuration = round(time.time()) - row[1]
+                    raw_duration = round(time.time()) - row[1]
                 else:
-                    rawDuration = row[2] - row[1]
+                    raw_duration = row[2] - row[1]
 
-                date = javascriptDate(row[1], noTime=True)
-                if date in tempCalendarData:
-                    tempCalendarData[date] += rawDuration
+                date = javascript_date(row[1], no_time=True)
+                if date in temp_calendar_data:
+                    temp_calendar_data[date] += raw_duration
                 else:
-                    tempCalendarData[date] = rawDuration
+                    temp_calendar_data[date] = raw_duration
 
-            #Generate calendar (format data)
-            calendarData = "["
-            for date, seconds in tempCalendarData.items():
-                calendarData = calendarData + "[" + date + ", " + str(round(seconds/60/60)) + "]"
-                calendarData = calendarData + ","
-            calendarData = calendarData[:-1] + "]"
-            output = output.replace("$calendarData", calendarData)
+            # Generate calendar (format data)
+            calendar_data = "["
+            for date, seconds in temp_calendar_data.items():
+                calendar_data = calendar_data + \
+                    "[" + date + ", " + str(round(seconds/60/60)) + "]"
+                calendar_data = calendar_data + ","
+            calendar_data = calendar_data[:-1] + "]"
+            output = output.replace("$calendarData", calendar_data)
 
-        #Generate timeline
+        # Generate timeline
         if gen_timeline:
-            timelineData = ""
+            timeline_data = ""
             i = -1
             for row in rows:
                 i += 1
                 if row[2] < 0:
-                    endDate = round(currentTime())
+                    end_date = round(current_time())
                 else:
-                    endDate = row[2]
-                timelineData = timelineData + "['" + row[0] + "', '" + row[0] + "', " + javascriptDate(row[1]) + ", " + javascriptDate(endDate) + "]"
+                    end_date = row[2]
+                timeline_data = timeline_data + \
+                    "['" + row[0] + "', '" + row[0] + "', " + \
+                    javascript_date(row[1]) + ", " + \
+                    javascript_date(end_date) + "]"
                 if i != len(rows):
-                    timelineData = timelineData + ","
-            output = output.replace("$timelineData", timelineData)
+                    timeline_data = timeline_data + ","
+            output = output.replace("$timelineData", timeline_data)
 
-        #Add return link
-        if fromAdvanced == "1":
+        # Add return link
+        if from_advanced == "1":
             output = output.replace("$returnLink", "/advanced")
         else:
             output = output.replace("$returnLink", "/")
 
         conn.close()
-        return(output.replace("$contents", tempTitle + tempContents))
+        return(output.replace("$contents", temp_title + temp_contents))
 
     @cherrypy.expose
     def manual(self):
@@ -800,62 +826,65 @@ updateSlideshow()
         else:
             output = output.replace("$action", "sign in")
 
-        #Get list of all names
+        # Get list of all names
         cur.execute("SELECT DISTINCT name FROM people ORDER BY name")
-        namesUnfiltered = orderNames(cur.fetchall())
+        names_unfiltered = order_names(cur.fetchall())
 
-        #Get people here
+        # Get people here
         cur.execute("SELECT name FROM live")
-        namesHere = cur.fetchall()
-        for i in range(0, len(namesHere)):
-            namesHere[i] = namesHere[i][0]
+        names_here = cur.fetchall()
+        for i in range(0, len(names_here)):
+            names_here[i] = names_here[i][0]
 
-        #Generate list of names to display
+        # Generate list of names to display
         names = []
-        for i in range(0, len(namesUnfiltered)):
+        for i in range(0, len(names_unfiltered)):
             if func == "signin":
                 display = True
             elif func == "signout":
-                display = namesUnfiltered[i] in namesHere
+                display = names_unfiltered[i] in names_here
             else:
                 display = True
             if display:
-                names.append(namesUnfiltered[i])
+                names.append(names_unfiltered[i])
 
         if letter == 0:
-            output = output.replace("$prompt", "Please select your first initial:")
+            output = output.replace(
+                "$prompt", "Please select your first initial:")
 
-            #Get list of letters
+            # Get list of letters
             letters = []
             for name in names:
                 if name[0] not in letters:
                     letters.append(name[0])
             letters = sorted(letters)
 
-            #Generate table html (select letter)
-            tempTableHtml = "<tr>"
+            # Generate table html (select letter)
+            temp_table_html = "<tr>"
             for i in range(0, len(letters)):
                 if i % 8 == 0:
                     if i != 0:
-                        tempTableHtml = tempTableHtml + "</tr><tr>"
-                tempTableHtml = tempTableHtml + "<td class=\"letters\"><a href=\"/manual_select/" + func + "/" + letters[i] + "\">" + letters[i] + "</a></td>"
-            tempTableHtml = tempTableHtml + "</tr>"
+                        temp_table_html = temp_table_html + "</tr><tr>"
+                temp_table_html = temp_table_html + "<td class=\"letters\"><a href=\"/manual_select/" + \
+                    func + "/" + letters[i] + "\">" + letters[i] + "</a></td>"
+            temp_table_html = temp_table_html + "</tr>"
 
         else:
             output = output.replace("$prompt", "Please select your name:")
 
-            #Generate table html (select person)
-            tempTableHtml = "<tr>"
+            # Generate table html (select person)
+            temp_table_html = "<tr>"
             i = -1
             for name in names:
                 if name[0] == letter:
                     i += 1
                     if i % 4 == 0:
                         if i != 0:
-                            tempTableHtml = tempTableHtml + "</tr><tr>"
-                    tempTableHtml = tempTableHtml + "<td class=\"names\"><a href=\"/manual_internal?name=" + name + "&func=" + func + "\">" + name + "</a></td>"
-            tempTableHtml = tempTableHtml + "</tr>"
-        output = output.replace("$tableHtml", tempTableHtml)
+                            temp_table_html = temp_table_html + "</tr><tr>"
+                    temp_table_html = temp_table_html + "<td class=\"names\"><a href=\"/manual_internal?name=" + \
+                        name + "&func=" + func + "\">" + name + "</a></td>"
+            temp_table_html = temp_table_html + "</tr>"
+        output = output.replace("$tableHtml", temp_table_html)
 
         conn.close()
         return(output)
@@ -875,55 +904,62 @@ $contents
 
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div><br>
 <div class="message">$message
-<br><br>Have $deviceDescription device you bring to robotics? <a href="/manual_addDevice_stage1?name=$name" class="show">Click here</a>
+<br><br>Have $deviceDescription device you bring to robotics? <a href="/manual_add_device_stage_1?name=$name" class="show">Click here</a>
 </div>
             """)
-            cur.execute("SELECT mac,description,reliable FROM devices WHERE name=?", (name,))
+            cur.execute(
+                "SELECT mac,description,reliable FROM devices WHERE name=?", (name,))
             data = cur.fetchall()
             descriptions = []
-            manual_hasDevice = len(data) > 0
-            manual_validDescription = False
-            manual_reliableDevice = False
+            manual_has_device = len(data) > 0
+            manual_valid_description = False
+            manual_reliable_device = False
             for i in range(0, len(data)):
-                if data[i][0] == None:
-                    manual_nullMac = True
                 if data[i][2] == 1:
-                    manual_reliableDevice = True
+                    manual_reliable_device = True
                 if data[i][1] != None:
-                    manual_validDescription = True
+                    manual_valid_description = True
                     if data[i][2] == 1:
                         descriptions.append(data[i][1])
-            auto = (manual_hasDevice and manual_validDescription and manual_reliableDevice)
+            auto = (
+                manual_has_device and manual_valid_description and manual_reliable_device)
 
             if auto == False:
-                output = output.replace("$message", "You, $name, should sign in manually. Be sure to sign out when you leave.")
+                output = output.replace(
+                    "$message", "You, $name, should sign in manually. Be sure to sign out when you leave.")
                 output = output.replace("$deviceDescription", "a")
 
             else:
-                output = output.replace("$message", "You, $name, do not normally need to sign in.<br><br>However, if do not have your $devices, please sign in manually.")
+                output = output.replace(
+                    "$message", "You, $name, do not normally need to sign in.<br><br>However, if do not have your $devices, please sign in manually.")
                 output = output.replace("$deviceDescription", "another")
-                output = output.replace("$devices", formatList(descriptions, "or"))
+                output = output.replace(
+                    "$devices", format_list(descriptions, "or"))
 
             output = output.replace("$name", name)
         else:
-            #Get time
-            now = currentTime()
+            # Get time
+            now = current_time()
 
-            #Update database
+            # Update database
             if func == "signin":
                 cur.execute("SELECT * FROM live WHERE name=?", (name,))
                 if len(cur.fetchall()) != 0:
-                    cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (now,name))
-                    cur.execute("UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
+                    cur.execute(
+                        "UPDATE live SET lastSeen=? WHERE name=?", (now, name))
+                    cur.execute(
+                        "UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
                 else:
-                    cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,now))
-                    cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,now))
-                    slack.post(name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (M)")
+                    cur.execute(
+                        "INSERT INTO live(name,lastSeen) VALUES (?,?)", (name, now))
+                    cur.execute(
+                        "INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name, now))
             elif func == "signout":
                 cur.execute("DELETE FROM live WHERE name=?", (name,))
-                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now,name))
-                cur.execute("INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name,now))
-                slack.post(name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (M)")
+                cur.execute(
+                    "UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now, name))
+                cur.execute(
+                    "INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name, now))
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
@@ -935,15 +971,15 @@ $contents
         return(output)
 
     @cherrypy.expose
-    def manual_addDevice_stage1(self, name="John Doe"):
+    def manual_add_device_stage_1(self, name="John Doe"):
         output = """
 <html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script type="application/javascript">
 function chgAction(mainForm){
-if( document.mainForm.deviceType.selectedIndex==13 )
-    {document.mainForm.action = "/manual_addDevice_stage2";}
+if( document.mainForm.device_type.selectedIndex==13 )
+    {document.mainForm.action = "/manual_add_device_stage_2";}
 else
-{document.mainForm.action = "/manual_addDevice_stage3";}
+{document.mainForm.action = "/manual_add_device_stage_3";}
 }
 
 </script>
@@ -951,9 +987,9 @@ else
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual_internal?func=info&name=$name">< Return</a></div><br>
 <div class="message_small">
 In order to automatically track attendace, we can detect when devices enter this building. If you have a device you are willing to let us track, please continue.
-<form name="mainForm" id="mainForm" method="post" action="/manual_addDevice_stage3">
+<form name="mainForm" id="mainForm" method="post" action="/manual_add_device_stage_3">
 
-<br>What sort of device is it? <select id="deviceType" name="deviceType" onChange="javascript:chgAction()">
+<br>What sort of device is it? <select id="device_type" name="device_type" onChange="javascript:chgAction()">
 <option>iPhone</option>
 <option>Android Phone</option>
 <option>Windows 10 Laptop</option>
@@ -980,16 +1016,16 @@ In order to automatically track attendace, we can detect when devices enter this
         return(output)
 
     @cherrypy.expose
-    def manual_addDevice_stage2(self, name="John Doe", deviceType="iPhone"):
+    def manual_add_device_stage_2(self, name="John Doe", device_type="iPhone"):
         output = """
 <html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual_internal?func=info&name=$name">< Return</a></div><br>
 <div class="message_small">
 
-<form method="post" action="/manual_addDevice_stage3">
+<form method="post" action="/manual_add_device_stage_3">
 How would you classify this device? (phone, tablet, laptop, watch, etc.) <input type="text" name="description">
 <input type="hidden" name="name" value="$name">
-<input type="hidden" name="deviceType" value="$deviceType">
+<input type="hidden" name="device_type" value="$device_type">
 <button type="submit">Continue</button>
 
 </form>
@@ -997,17 +1033,17 @@ How would you classify this device? (phone, tablet, laptop, watch, etc.) <input 
 </body></html>
         """
         output = output.replace("$name", name)
-        output = output.replace("$deviceType", deviceType)
+        output = output.replace("$device_type", device_type)
         return(output)
 
     @cherrypy.expose
-    def manual_addDevice_stage3(self, name="John Doe", deviceType="iPhone", description="", forceManual="0"):
+    def manual_add_device_stage_3(self, name="John Doe", device_type="iPhone", description="", force_manual="0"):
         output = """
 <html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script>
 window.setInterval("reloadIFrame();", 1000);
 function reloadIFrame() {
- document.getElementById("waitDisplay").src="/manual_waitForMac";
+ document.getElementById("waitDisplay").src="/manual_wait_for_mac";
 }
 </script>
 </head><body>
@@ -1021,8 +1057,8 @@ $content
 </body></html>
         """
 
-        outputManual = """
-<form method="post" action="/manual_addDevice_stage4">
+        output_manual = """
+<form method="post" action="/manual_add_device_stage_4">
 
 <input type="hidden" name="name" value="$name">
 <input type="hidden" name="description" value="$description">
@@ -1033,22 +1069,22 @@ What is your $description's MAC address? <input type="text" name="mac">
 <button type="submit">Add Device</button>
         """
 
-        outputAuto = """
+        output_auto = """
 Next, please go to a web browser on your $description and type in the address:<br><br>
 
 <div style="font-family: monospace;">http://attendance.local/add</div>
 
 <br>You must be connected to the HS-Access or HS-Access_5GHz network.
-<br><br><a href="/manual_addDevice_stage3?name=$name&deviceType=$deviceType&description=$description&forceManual=1" class="show">I can't do that</a>
+<br><br><a href="/manual_add_device_stage_3?name=$name&device_type=$device_type&description=$description&force_manual=1" class="show">I can't do that</a>
 
-<br><br><iframe id="waitDisplay" src="/manual_waitForMac" style="border: none; width: 100%; height: 200px;"></iframe>
+<br><br><iframe id="waitDisplay" src="/manual_wait_for_mac" style="border: none; width: 100%; height: 200px;"></iframe>
         """
 
-        #Get device description
-        if deviceType == "Other":
+        # Get device description
+        if device_type == "Other":
             description = description
         else:
-            descriptionLookup = {
+            description_lookup = {
                 "iPhone": "phone",
                 "Android Phone": "phone",
                 "Windows 10 Laptop": "laptop",
@@ -1063,13 +1099,13 @@ Next, please go to a web browser on your $description and type in the address:<b
                 "Android Wear": "watch",
                 "iPod Touch": "iPod Touch"
             }
-            description = descriptionLookup[deviceType]
+            description = description_lookup[device_type]
 
-        #Fill in content based on auto or manual entry
-        if description == "watch" or forceManual == "1": #Manual entry
-            output = output.replace("$content", outputManual)
+        # Fill in content based on auto or manual entry
+        if description == "watch" or force_manual == "1":  # Manual entry
+            output = output.replace("$content", output_manual)
             #Fill in instructions
-            instructionsLookup = {
+            instructions_lookup = {
                 "iPhone": ["Go to the settings app", "Tap 'General'", "Tap 'About'", "Your iPhone's MAC address is listed as 'Wi-Fi Address'"],
                 "Android Phone": ["Go to the settings app", "Tap 'About phone'", "Tap 'Status'", "Your phone's MAC address is listed as 'Wi-Fi MAC Address'", "If these steps don't work, Google how to find the MAC address on your specific device."],
                 "Windows 10 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
@@ -1083,30 +1119,32 @@ Next, please go to a web browser on your $description and type in the address:<b
                 "Android Wear": ["Go to Settings", "Choose 'System'", "Click 'About'", "Select 'Model'", "Your watch's MAC address will be displayed"],
                 "Samsung Gear": ["Go to Settings", "Press 'Gear info'", "Select 'About device'", "Your watch's MAC address will be displayed"],
                 "iPod Touch": ["Go to the settings app", "Tap 'General'", "Tap 'About'", "Your device's MAC address is listed as 'Wi-Fi Address'"],
-                "Other": ["Google how to get your device's MAC address", "Do that"]
+                "Other": ["Google how to get your device's Wi-Fi MAC address", "Do that"]
             }
-            instructions = instructionsLookup[deviceType]
-            instructionsText = ""
+            instructions = instructions_lookup[device_type]
+            instructions_text = ""
             for i in range(0, len(instructions)):
-                instructionsText = instructionsText + "<li>" + instructions[i] + "</li>"
-            output = output.replace("$instructions", instructionsText)
+                instructions_text = instructions_text + \
+                    "<li>" + instructions[i] + "</li>"
+            output = output.replace("$instructions", instructions_text)
 
-        else: #Auto entry
-            output = output.replace("$content", outputAuto)
+        else:  # Auto entry
+            output = output.replace("$content", output_auto)
             conn = sql.connect(database)
             cur = conn.cursor()
             cur.execute("DELETE FROM addDevice")
-            cur.execute("INSERT INTO addDevice(name,description) VALUES (?,?)", (name,description))
+            cur.execute(
+                "INSERT INTO addDevice(name,description) VALUES (?,?)", (name, description))
             conn.commit()
             conn.close()
 
         output = output.replace("$name", name)
-        output = output.replace("$deviceType", deviceType)
+        output = output.replace("$device_type", device_type)
         output = output.replace("$description", description)
         return(output)
 
     @cherrypy.expose
-    def manual_addDevice_stage4(self, name="John Doe", mac="", description="unknown"):
+    def manual_add_device_stage_4(self, name="John Doe", mac="", description="unknown"):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
@@ -1119,14 +1157,16 @@ $message
 </body></html>
             """
 
-        newMac = mac.lower()
-        newMac = newMac.replace("-", ":")
+        new_mac = mac.lower()
+        new_mac = new_mac.replace("-", ":")
 
         cur.execute("DELETE FROM addDevice")
         try:
-            cur.execute("INSERT INTO devices(name,mac,description,reliable) VALUES (?,?,?,1)", (name,newMac,description))
+            cur.execute("INSERT INTO devices(name,mac,description,reliable) VALUES (?,?,?,1)",
+                        (name, new_mac, description))
         except:
-            output = output.replace("$message", "This device is already registered in the system.<br><br>This may mean that we have decided this device is unreliable.")
+            output = output.replace(
+                "$message", "This device is already registered in the system.<br><br>This may mean that we have decided this device is unreliable.")
         else:
             output = output.replace("$message", "Your device has been added!")
 
@@ -1136,7 +1176,7 @@ $message
         return(output.replace("$name", name))
 
     @cherrypy.expose
-    def manual_waitForMac(self):
+    def manual_wait_for_mac(self):
         conn = sql.connect(database)
         cur = conn.cursor()
 
@@ -1148,13 +1188,13 @@ $content
 </body></html>
         """
 
-        outputWaiting = """
+        output_waiting = """
 Waiting...
         """
 
-        outputFinished = """
+        output_finished = """
 Your device is almost ready to be tracked.
-<form method="post" action="/manual_addDevice_stage4">
+<form method="post" action="/manual_add_device_stage_4">
 <input type="hidden" name="name" value="$name">
 <input type="hidden" name="mac" value="$mac">
 <input type="hidden" name="description" value="$description">
@@ -1165,12 +1205,12 @@ Your device is almost ready to be tracked.
         cur.execute("SELECT * FROM addDevice")
         data = cur.fetchall()
         if len(data) == 0:
-            output = output.replace("$content", outputWaiting)
+            output = output.replace("$content", output_waiting)
         else:
             if data[0][2] == None:
-                output = output.replace("$content", outputWaiting)
+                output = output.replace("$content", output_waiting)
             else:
-                output = output.replace("$content", outputFinished)
+                output = output.replace("$content", output_finished)
                 output = output.replace("$name", data[0][0])
                 output = output.replace("$description", data[0][1])
                 output = output.replace("$mac", data[0][2])
@@ -1185,30 +1225,34 @@ Your device is almost ready to be tracked.
 <div class="message">$message</div>
 </body></html>
         """
-        def getMac():
-            arpOutput = subprocess.run(["arp", cherrypy.request.remote.ip], stdout=subprocess.PIPE).stdout.decode('utf-8')
-            arpOutput = arpOutput.split("\n")
-            if len(arpOutput) < 2:
-                return("failure")
-            arpOutput = arpOutput[1][33:50]
-            if len(arpOutput) == 0:
-                return("failure")
-            return(arpOutput)
 
-        mac = getMac()
+        def get_mac():
+            arp_output = subprocess.run(
+                ["arp", cherrypy.request.remote.ip], stdout=subprocess.PIPE).stdout.decode('utf-8')
+            arp_output = arp_output.split("\n")
+            if len(arp_output) < 2:
+                return("failure")
+            arp_output = arp_output[1][33:50]
+            if len(arp_output) == 0:
+                return("failure")
+            return(arp_output)
+
+        mac = get_mac()
         cur.execute("SELECT count(*) FROM addDevice")
         if cur.fetchall()[0][0] != 1 or mac == "failure":
-            output = output.replace("$message", "Something has gone wrong!<br><br>Please click I can't do that")
+            output = output.replace(
+                "$message", "Something has gone wrong!<br><br>Please click I can't do that")
         else:
             cur.execute("UPDATE addDevice SET mac=?", (mac,))
-            output = output.replace("$message", "Excellent! Please continue on the attendance screen.")
+            output = output.replace(
+                "$message", "Excellent! Please continue on the attendance screen.")
 
         conn.commit()
         conn.close()
         return(output)
 
     @cherrypy.expose
-    def peoplelist(self, sortFirst='0'):
+    def peoplelist(self, sort_first='0'):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
@@ -1220,49 +1264,54 @@ Your device is almost ready to be tracked.
 </form>
 
 <h3>$peoplecount People:</h3>
-Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">last name</a><br><br>
+Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">last name</a><br><br>
 <div style="line-height: 2em;">$peoplelistHtml</div>
 
 </body></html>
         """
 
-        #Get list of names
+        # Get list of names
         cur.execute("SELECT name FROM people")
-        names = orderNames(cur.fetchall(), byFirst=(sortFirst == '1'))
+        names = order_names(cur.fetchall(), by_first=(sort_first == '1'))
 
-        #Set people count
+        # Set people count
         output = output.replace("$peoplecount", str(len(names)))
 
-        #Create html
-        peoplelistHtml = ""
+        # Create html
+        peoplelist_html = ""
         for i in range(0, len(names)):
-            #Get devices
-            cur.execute("SELECT description FROM devices WHERE name=? ORDER BY description", (names[i],))
+            # Get devices
+            cur.execute(
+                "SELECT description FROM devices WHERE name=? ORDER BY description", (names[i],))
             devices = cur.fetchall()
             if len(devices) == 0:
-                devicesText = "no devices"
+                devices_text = "no devices"
             else:
-                devicesText = ""
+                devices_text = ""
                 for f in range(0, len(devices)):
                     if devices[f][0] == None:
                         description = "unknown"
                     else:
                         description = devices[f][0]
-                    devicesText = devicesText + description + ", "
-                devicesText = devicesText[:-2]
+                    devices_text = devices_text + description + ", "
+                devices_text = devices_text[:-2]
 
-            #Get categories
-            cur.execute("SELECT category FROM categories WHERE name=? ORDER BY category", (names[i],))
+            # Get categories
+            cur.execute(
+                "SELECT category FROM categories WHERE name=? ORDER BY category", (names[i],))
             categories = cur.fetchall()
             if len(categories) == 0:
-                categoriesText = "no categories"
+                categories_text = "no categories"
             else:
-                categoriesText = ""
+                categories_text = ""
                 for f in range(0, len(categories)):
-                    categoriesText = categoriesText + categories[f][0] + ", "
-                categoriesText = categoriesText[:-2]
-            peoplelistHtml = peoplelistHtml + "<a style=\"color: black; font-weight: bold; text-decoration: none;\" href=\"/person/" + names[i] + "\">"+ names[i] + "</a> <i>(" + devicesText + "), (" + categoriesText + ")</i><br>"
-        output = output.replace("$peoplelistHtml", peoplelistHtml)
+                    categories_text = categories_text + categories[f][0] + ", "
+                categories_text = categories_text[:-2]
+            peoplelist_html = peoplelist_html + "<a style=\"color: black; font-weight: bold; text-decoration: none;\" href=\"/person/" + \
+                names[i] + "\">" + names[i] + \
+                "</a> <i>(" + devices_text + "), (" + \
+                categories_text + ")</i><br>"
+        output = output.replace("$peoplelistHtml", peoplelist_html)
 
         conn.close()
         return(output)
@@ -1290,8 +1339,8 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
 <h2>$name</h2>
 <h3>General</h3>
 <form method="post" action="/person_rename">
-<input name="oldName" type="hidden" value="$name">
-<input name="newName" type="text"><button type="submit">Rename</button>
+<input name="old_name" type="hidden" value="$name">
+<input name="new_name" type="text"><button type="submit">Rename</button>
 </form>
 
 <form method="post" action="/person_remove">
@@ -1299,7 +1348,7 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
 </form>
 
 <h3>Categories</h3>
-<form method="post" action="/person_addCategory">
+<form method="post" action="/person_add_category">
 <input type="hidden" value="$name" name="name">
 <select name="category">$selectionHtml</select>
 <button type="submit">Add Category</button>
@@ -1307,74 +1356,87 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
 <div style="line-height: 1.5em;">$categoriesHtml</div>
 
 <h3>Devices</h3>
-<a href="/manual_addDevice_stage1?name=$name" target="_blank">Add Device</a><br><br>
+<a href="/manual_add_device_stage_1?name=$name" target="_blank">Add Device</a><br><br>
 <div style="line-height: 1.5em;">$devicesHtml</div>
 
 </body></html>
         """
         output = output.replace("$name", name)
 
-        #Generate category selection
+        # Generate category selection
         cur.execute("SELECT name FROM possibleCategories")
-        possibleCategories = cur.fetchall()
-        for i in range(0, len(possibleCategories)):
-            possibleCategories[i] = possibleCategories[i][0]
-        tempSelectionHtml = ""
-        for i in range(0, len(possibleCategories)):
-            tempSelectionHtml = tempSelectionHtml + "<option value=\"" + possibleCategories[i] + "\">" + possibleCategories[i] + "</option>"
-        output = output.replace("$selectionHtml", tempSelectionHtml)
+        possible_categories = cur.fetchall()
+        for i in range(0, len(possible_categories)):
+            possible_categories[i] = possible_categories[i][0]
+        temp_selection_html = ""
+        for i in range(0, len(possible_categories)):
+            temp_selection_html = temp_selection_html + "<option value=\"" + \
+                possible_categories[i] + "\">" + \
+                possible_categories[i] + "</option>"
+        output = output.replace("$selectionHtml", temp_selection_html)
 
-        #Get devices
-        cur.execute("SELECT id,description,reliable FROM devices WHERE name=?", (name,))
+        # Get devices
+        cur.execute(
+            "SELECT id,description,reliable FROM devices WHERE name=?", (name,))
         devices = cur.fetchall()
 
-        #Generate devices html
-        devicesHtml = ""
+        # Generate devices html
+        devices_html = ""
         for i in range(0, len(devices)):
             if devices[i][2] == 1:
-                toggleText = "Mark as unreliable"
+                toggle_text = "Mark as unreliable"
             else:
-                toggleText = "Mark as reliable"
+                toggle_text = "Mark as reliable"
             if devices[i][1] == None:
                 description = "unknown"
             else:
                 description = devices[i][1]
-            devicesHtml = devicesHtml + "<i>" + description + "</i>"
-            devicesHtml = devicesHtml + " - <a href=\"/person_toggleReliable/" + str(devices[i][0]) + "\">" + toggleText + "</a>"
-            devicesHtml = devicesHtml + " - <a href=\"/person_removeDevice/" + str(devices[i][0]) + "\">Remove device</a><br>"
-        output = output.replace("$devicesHtml", devicesHtml)
+            devices_html = devices_html + "<i>" + description + "</i>"
+            devices_html = devices_html + " - <a href=\"/person_toggle_reliable/" + \
+                str(devices[i][0]) + "\">" + toggle_text + "</a>"
+            devices_html = devices_html + " - <a href=\"/person_removeDevice/" + \
+                str(devices[i][0]) + "\">Remove device</a><br>"
+        output = output.replace("$devicesHtml", devices_html)
 
-        #Get categories
+        # Get categories
         cur.execute("SELECT category FROM categories WHERE name=?", (name,))
         categories = cur.fetchall()
         for i in range(0, len(categories)):
             categories[i] = categories[i][0]
 
-        #Generate categories html
-        categoriesHtml = ""
+        # Generate categories html
+        categories_html = ""
         for i in range(0, len(categories)):
-            categoriesHtml = categoriesHtml + "<i>" + categories[i] + "</i>"
-            categoriesHtml = categoriesHtml + " - <a href=\"/person_removeCategory?name=" + name + "&category=" + categories[i] + "\">Remove category</a><br>"
-        output = output.replace("$categoriesHtml", categoriesHtml)
+            categories_html = categories_html + "<i>" + categories[i] + "</i>"
+            categories_html = categories_html + " - <a href=\"/person_remove_category?name=" + \
+                name + "&category=" + \
+                categories[i] + "\">Remove category</a><br>"
+        output = output.replace("$categoriesHtml", categories_html)
 
         conn.close()
         return(output)
 
     @cherrypy.expose
-    def person_rename(self, oldName="John Doe", newName="John Doe"):
+    def person_rename(self, old_name="John Doe", new_name="John Doe"):
         conn = sql.connect(database)
         cur = conn.cursor()
 
-        cur.execute("UPDATE people SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE devices SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE live SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE history SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE signedOut SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE categories SET name=? WHERE name=?", (newName,oldName))
-        cur.execute("UPDATE addDevice SET name=? WHERE name=?", (newName,oldName))
+        cur.execute("UPDATE people SET name=? WHERE name=?",
+                    (new_name, old_name))
+        cur.execute("UPDATE devices SET name=? WHERE name=?",
+                    (new_name, old_name))
+        cur.execute("UPDATE live SET name=? WHERE name=?", (new_name, old_name))
+        cur.execute("UPDATE history SET name=? WHERE name=?",
+                    (new_name, old_name))
+        cur.execute("UPDATE signedOut SET name=? WHERE name=?",
+                    (new_name, old_name))
+        cur.execute("UPDATE categories SET name=? WHERE name=?",
+                    (new_name, old_name))
+        cur.execute("UPDATE addDevice SET name=? WHERE name=?",
+                    (new_name, old_name))
 
         output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
-        output = output.replace("$name", newName)
+        output = output.replace("$name", new_name)
 
         conn.commit()
         conn.close()
@@ -1393,11 +1455,12 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         return("""<meta http-equiv="refresh" content="0; url=/peoplelist" />""")
 
     @cherrypy.expose
-    def person_addCategory(self, name="John Doe", category=""):
+    def person_add_category(self, name="John Doe", category=""):
         conn = sql.connect(database)
         cur = conn.cursor()
 
-        cur.execute("INSERT INTO categories(name,category) VALUES (?,?)", (name,category))
+        cur.execute(
+            "INSERT INTO categories(name,category) VALUES (?,?)", (name, category))
 
         output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", name)
@@ -1407,11 +1470,12 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         return(output)
 
     @cherrypy.expose
-    def person_removeCategory(self, name="John Doe", category=""):
+    def person_remove_category(self, name="John Doe", category=""):
         conn = sql.connect(database)
         cur = conn.cursor()
 
-        cur.execute("DELETE FROM categories WHERE name=? AND category=?", (name,category))
+        cur.execute(
+            "DELETE FROM categories WHERE name=? AND category=?", (name, category))
 
         output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", name)
@@ -1421,7 +1485,7 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         return(output)
 
     @cherrypy.expose
-    def person_toggleReliable(self, id=-1):
+    def person_toggle_reliable(self, id=-1):
         conn = sql.connect(database)
         cur = conn.cursor()
 
@@ -1429,14 +1493,15 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         data = cur.fetchall()
         if len(data) > 0:
             if data[0][0] == 0:
-                newValue = 1
+                new_value = 1
             else:
-                newValue = 0
-            cur.execute("UPDATE devices SET reliable=? WHERE id=?", (newValue,id))
+                new_value = 0
+            cur.execute("UPDATE devices SET reliable=? WHERE id=?",
+                        (new_value, id))
 
         output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
 
-        #Find name
+        # Find name
         cur.execute("SELECT name FROM devices WHERE id=?", (id,))
         output = output.replace("$name", cur.fetchall()[0][0])
 
@@ -1449,7 +1514,7 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         conn = sql.connect(database)
         cur = conn.cursor()
 
-        #Find name
+        # Find name
         cur.execute("SELECT name FROM devices WHERE id=?", (id,))
         name = cur.fetchall()[0][0]
 
@@ -1473,6 +1538,7 @@ Sort by <a href="/peoplelist?sortFirst=1">first name</a> <a href="/peoplelist">l
         conn.close()
         return(output)
 
+
 def error_page(status, message, traceback, version):
     output = """
 <html><head><title>Error - 6328 Attendance</title></head><body>
@@ -1490,11 +1556,9 @@ $traceback
     output = output.replace("$message", message)
     return(output)
 
-if __name__ == "__main__":
-    #Check for root permissions
-    if os.geteuid() != 0 and port == 80:
-        print("Please run again using 'sudo' to host on port 80.")
-        exit()
 
-    cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host, 'error_page.500': error_page, 'error_page.404': error_page})
-    cherrypy.quickstart(mainServer(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {"tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/favicon.ico"}})
+if __name__ == "__main__":
+    cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host,
+                            'error_page.500': error_page, 'error_page.404': error_page})
+    cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
+                        "tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/favicon.ico"}})

@@ -6,7 +6,7 @@ import sys
 import os
 
 #config
-log_path = "/home/attendance/Attendance_data/logs/monitor.log"
+log_path = "../Attendance_test/Attendance_data/logs/monitor.log"
 interfaces = {
 "INTERN": "wlp6s0",
 "BELKIN": "wlx00173f847fbf",

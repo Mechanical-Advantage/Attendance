@@ -65,6 +65,6 @@ function updateDisplayType() {
     }
   }
 
-  http.open("GET", "/manual_displayType")
+  http.open("GET", "/manual_display_type")
   http.send()
 }
