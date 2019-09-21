@@ -11,5 +11,5 @@ else:
         toWrite = 0
     
 conn = sql.connect("/home/attendance/Attendance_data/attendance.db")
-conn.cursor().execute("UPDATE slideshowSettings SET pureSlideshow=?", (toWrite,))
+conn.cursor().execute("UPDATE general SET value=? WHERE key='pure_slideshow'", (toWrite,))
 conn.commit()

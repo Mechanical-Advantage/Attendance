@@ -220,7 +220,7 @@ $check_html
 </body></html>
         """
         # Get list of categories
-        cur.execute("SELECT * FROM possibleCategories")
+        cur.execute("SELECT * FROM possible_categories")
         names = cur.fetchall()
         clean_names = []
         for i in range(0, len(names)):
@@ -325,7 +325,7 @@ left: 0px;
     def last_update(self):
         conn = sql.connect(database)
         cur = conn.cursor()
-        cur.execute("SELECT * FROM lastUpdate")
+        cur.execute("SELECT value FROM general WHERE key='last_update'")
         time = str(cur.fetchall()[0][0])
         conn.close()
         return(time)
@@ -529,7 +529,7 @@ $timelineDiv
             names = []
 
             # Get categories
-            cur.execute("SELECT * FROM possibleCategories")
+            cur.execute("SELECT * FROM possible_categories")
             categories = cur.fetchall()
             for i in range(0, len(categories)):
                 categories[i] = categories[i][0]
@@ -959,7 +959,7 @@ $contents
                 cur.execute(
                     "UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now, name))
                 cur.execute(
-                    "INSERT INTO signedOut(name,timestamp) VALUES (?,?)", (name, now))
+                    "INSERT INTO signed_out(name,timestamp) VALUES (?,?)", (name, now))
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
@@ -1132,9 +1132,9 @@ Next, please go to a web browser on your $description and type in the address:<b
             output = output.replace("$content", output_auto)
             conn = sql.connect(database)
             cur = conn.cursor()
-            cur.execute("DELETE FROM addDevice")
-            cur.execute(
-                "INSERT INTO addDevice(name,description) VALUES (?,?)", (name, description))
+            cur.execute("UPDATE general SET value=? WHERE key='add_name'", (name,))
+            cur.execute("UPDATE general SET value=? WHERE key='add_description'", (description,))
+            cur.execute("UPDATE general SET value=NULL WHERE key='add_mac'")
             conn.commit()
             conn.close()
 
@@ -1160,7 +1160,9 @@ $message
         new_mac = mac.lower()
         new_mac = new_mac.replace("-", ":")
 
-        cur.execute("DELETE FROM addDevice")
+        cur.execute("UPDATE general SET value=NULL WHERE key='add_name'")
+        cur.execute("UPDATE general SET value=NULL WHERE key='add_description'")
+        cur.execute("UPDATE general SET value=NULL WHERE key='add_mac'")
         try:
             cur.execute("INSERT INTO devices(name,mac,description,reliable) VALUES (?,?,?,1)",
                         (name, new_mac, description))
@@ -1202,18 +1204,17 @@ Your device is almost ready to be tracked.
 </form>
         """
 
-        cur.execute("SELECT * FROM addDevice")
-        data = cur.fetchall()
-        if len(data) == 0:
+        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        add_description = cur.execute("SELECT value FROM general WHERE key='add_description'").fetchall()[0][0]
+        add_mac = cur.execute("SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
+        if add_name == None or add_mac == None:
             output = output.replace("$content", output_waiting)
         else:
-            if data[0][2] == None:
-                output = output.replace("$content", output_waiting)
-            else:
-                output = output.replace("$content", output_finished)
-                output = output.replace("$name", data[0][0])
-                output = output.replace("$description", data[0][1])
-                output = output.replace("$mac", data[0][2])
+            output = output.replace("$content", output_finished)
+            output = output.replace("$name", add_name)
+            output = output.replace("$description", add_description)
+            output = output.replace("$mac", add_mac)
+
         return(output)
 
     @cherrypy.expose
@@ -1238,14 +1239,13 @@ Your device is almost ready to be tracked.
             return(arp_output)
 
         mac = get_mac()
-        cur.execute("SELECT count(*) FROM addDevice")
-        if cur.fetchall()[0][0] != 1 or mac == "failure":
-            output = output.replace(
-                "$message", "Something has gone wrong!<br><br>Please click I can't do that")
+        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        add_mac = cur.execute("SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
+        if add_name == None or mac == "failure":
+            output = output.replace("$message", "Something has gone wrong!<br><br>Please click I can't do that")
         else:
-            cur.execute("UPDATE addDevice SET mac=?", (mac,))
-            output = output.replace(
-                "$message", "Excellent! Please continue on the attendance screen.")
+            cur.execute("UPDATE general SET value=? WHERE key='add_mac'", (mac,))
+            output = output.replace("$message", "Excellent! Please continue on the attendance screen.")
 
         conn.commit()
         conn.close()
@@ -1364,7 +1364,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         output = output.replace("$name", name)
 
         # Generate category selection
-        cur.execute("SELECT name FROM possibleCategories")
+        cur.execute("SELECT name FROM possible_categories")
         possible_categories = cur.fetchall()
         for i in range(0, len(possible_categories)):
             possible_categories[i] = possible_categories[i][0]
@@ -1428,12 +1428,13 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         cur.execute("UPDATE live SET name=? WHERE name=?", (new_name, old_name))
         cur.execute("UPDATE history SET name=? WHERE name=?",
                     (new_name, old_name))
-        cur.execute("UPDATE signedOut SET name=? WHERE name=?",
+        cur.execute("UPDATE signed_out SET name=? WHERE name=?",
                     (new_name, old_name))
         cur.execute("UPDATE categories SET name=? WHERE name=?",
                     (new_name, old_name))
-        cur.execute("UPDATE addDevice SET name=? WHERE name=?",
-                    (new_name, old_name))
+        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        if add_name == old_name:
+            cur.execute("UPDATE general SET value=? WHERE key='add_name'", (new_name,))
 
         output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
         output = output.replace("$name", new_name)
@@ -1510,7 +1511,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         return(output)
 
     @cherrypy.expose
-    def person_removeDevice(self, id=-1):
+    def person_remove_device(self, id=-1):
         conn = sql.connect(database)
         cur = conn.cursor()
 
@@ -1528,11 +1529,11 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         return(output)
 
     @cherrypy.expose
-    def manual_displayType(self):
+    def manual_display_type(self):
         conn = sql.connect(database)
         cur = conn.cursor()
 
-        cur.execute("SELECT * FROM slideshowSettings")
+        cur.execute("SELECT value FROM general WHERE key='pure_slideshow'")
         output = str(cur.fetchall()[0][0])
 
         conn.close()
