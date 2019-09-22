@@ -1,20 +1,14 @@
-function checkStatus() {
-    const http = new XMLHttpRequest()
-    
-    http.onreadystatechange = function() {
-        if (this.readyState == 4) {
-            if (this.status == 200) {
-                if (this.responseText == 1) {
-                    window.location = "/show_records?request_id=" + requestId.toString()
-                }
-            }
-        }
+var socket = new WebSocket("ws://" + window.location.hostname + ":8001")
+socket.onmessage = function(event) {
+    if (event.data == "1") {
+        socket.close()
+        window.location = "/show_records?request_id=" + requestId.toString()
     }
-    
-    http.open("GET", "/request_status?request_id=" + requestId)
-    http.send()
 }
-setInterval(checkStatus, 300)
+function checkStatus() {
+    socket.send(requestId)
+}
+setInterval(function() {checkStatus()}, 50)
 
 const funnyTexts = ["The robots are hard at work!",
                     "Searching for the missing clue...",
@@ -79,13 +73,12 @@ function writeText() {
     var text = funnyTexts[Math.floor(Math.random()*funnyTexts.length)]
     document.getElementById("funnyText").innerHTML = text
 }
-setTimeout(writeText, 6000)
+writeText()
 
 var canvas = document.getElementById("loadingCanvas")
 var context = canvas.getContext("2d")
 var loadingImage = document.getElementById("loadingImage")
 function whenLoaded() {
-    console.log("loaded")
     var clipHeight = loadingImage.height
     var clipWidth = (canvas.width / canvas.height) * loadingImage.height
     

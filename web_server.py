@@ -1,5 +1,6 @@
 import cherrypy
 import recordkeeper
+from simple_websocket_server import WebSocketServer, WebSocket
 import inflect
 import sqlite3 as sql
 import threading
@@ -13,6 +14,8 @@ import os
 # Config
 port = 8000
 host = '0.0.0.0'
+socket_port = 8001
+socket_host = '0.0.0.0'
 database = "attendance.db"
 log_database = "logs.db"
 root_main = "/Users/jonah/Documents/Attendance/"
@@ -457,17 +460,6 @@ $error
         return(output)
 
     @cherrypy.expose
-    def request_status(self, request_id):
-        try:
-            complete = record_requests[int(request_id)]["complete"]
-        except:
-            return(str(0))
-        if complete:
-            return(str(1))
-        else:
-            return(str(0))
-
-    @cherrypy.expose
     def show_records(self, request_id):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -624,6 +616,8 @@ chart.draw(dataTable, options);
 
         # Get data from request
         request_id = int(request_id)
+        if request_id not in range(len(record_requests)):
+            return("""<meta http-equiv="refresh" content="0;URL='/'" />""")
         rows = sorted(record_requests[request_id]["output"], key=lambda x: (x["name"], x["timein"]))
         start_date = record_requests[request_id]["start_date"]
         end_date = record_requests[request_id]["end_date"]
@@ -1651,9 +1645,36 @@ $traceback
     output = output.replace("$message", message)
     return(output)
 
+class status_server(WebSocket):
+    def handle(self):
+        try:
+            request_id = int(self.data)
+        except:
+            self.send_message("0")
+        if request_id not in range(len(record_requests)):
+            self.send_message("0")
+        else:
+            if record_requests[request_id]["complete"]:
+                self.send_message("1")
+            else:
+                self.send_message("0")
+
+    def connected(self):
+        cherrypy.log("Socket opened from " + self.address[0])
+    
+    def handle_close(self):
+        cherrypy.log("Socket closed to " + self.address[0])
+
+def run_status_server():
+    server = WebSocketServer(socket_host, socket_port, status_server)
+    cherrypy.log("Starting web socket server on ws://" + socket_host + ":" + str(socket_port))
+    server.serve_forever()
+    cherrypy.log("Stopping web socket server on ws://" + socket_host + ":" + str(socket_port))
 
 if __name__ == "__main__":
     recordkeeper.start_live_server()
+    server_thread = threading.Thread(target=run_status_server, daemon=True)
+    server_thread.start()
     cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
