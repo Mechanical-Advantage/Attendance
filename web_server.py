@@ -1,29 +1,38 @@
-import time
-import datetime
 import cherrypy
 import recordkeeper
-import sqlite3 as sql
-import math
-import subprocess
 import inflect
-import os
+import sqlite3 as sql
+import threading
 from random import shuffle
+import math
+import time
+import datetime
+import subprocess
+import os
 
 # Config
 port = 8000
 host = '0.0.0.0'
 database = "attendance.db"
+log_database = "logs.db"
 root_main = "/Users/jonah/Documents/Attendance/"
 root_data = "/Users/jonah/Documents/Attendance_test/Attendance_data/"
 
 # Setup
 database = root_data + database
+log_database = root_data + log_database
 language_manager = inflect.engine()
+record_requests = []
+request_threads = []
 
+def record_request_thread(request_id):
+    request = record_requests[request_id]
+    data = recordkeeper.get_range(request["start_date"], request["end_date"], filter=request["filter"])
+    record_requests[request_id]["output"] = data
+    record_requests[request_id]["complete"] = True
 
 def current_time():
     return(int(round(time.time())))
-
 
 def format_duration(duration, show_seconds):
     temp_duration = duration
@@ -116,7 +125,7 @@ iframe {
 <script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
-<form method="get" action="/get_records">
+<form method="get" action="/load_records">
 <input type="date" name="start_date" value="$start_value"> to <input type="date" name="end_date" value="$end_value"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
 <button type="submit">Get Records</button>
 </form>
@@ -142,8 +151,7 @@ function reloadLive() {
         """
 
         # Generate name selector
-        cur.execute("SELECT name FROM people")
-        names = order_names(cur.fetchall())
+        names = order_names(cur.execute("SELECT * FROM people").fetchall())
         temp_selection_html = ""
         for i in range(0, len(names)):
             temp_selection_html = temp_selection_html + "<option value=\"" + \
@@ -205,7 +213,7 @@ refresh();
 </script>
 </head><body>
 <a href="/">< Return</a><br><br>
-<form id="mainForm" method="get" action="/get_records">
+<form id="mainForm" method="get" action="/load_records">
 Start date: <input type="date" name="start_date" value="$start_value"><br>
 End date: <input type="date" name="end_date" value="$end_value">
 </form>
@@ -214,7 +222,6 @@ End date: <input type="date" name="end_date" value="$end_value">
 $check_html
 
 <input form="mainForm" type="hidden" name="filter" id="output">
-<input form="mainForm" type="hidden" name="from_advance" value="1">
 <button form="mainForm" type="submit">Get Records</button>
 
 </body></html>
@@ -303,8 +310,9 @@ left: 0px;
             """)
 
         # Get list of live names
-        cur.execute("SELECT name FROM live")
-        rows = order_names(cur.fetchall())
+        rows = order_names([(x,) for x in recordkeeper.get_livecache()])
+        if len(rows) == 0:
+            rows.append("No one")
 
         # Generate table html
         temp_table_html = "<tr>"
@@ -329,11 +337,141 @@ left: 0px;
         time = str(cur.fetchall()[0][0])
         conn.close()
         return(time)
-
+    
     @cherrypy.expose
-    def get_records(self, start_date="", end_date="", filter="*", from_advanced="0"):
+    def load_records(self, start_date="", end_date="", filter="*"):
         conn = sql.connect(database)
         cur = conn.cursor()
+        output = """
+<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
+<style>
+
+.center {
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+}
+
+div.load-text {
+text-align: center;
+font-size: 25px;
+margin-bottom: 10px;
+max-width: 150px;
+font-weight: bold;
+}
+
+div.funny-text {
+font-weight: normal;
+font-size: 20px;
+margin-top: 10px;
+}
+</style>
+<script>
+const requestId = $requestid
+</script>
+</head>
+<body>
+
+<div class="center">
+<div class="load-text">
+Please wait
+<div class="funny-text" id="funnyText"></div>
+</div>
+<canvas id="loadingCanvas" width=150, height=60></canvas>
+<img id="loadingImage" src="/static/img/loading.png" hidden></img>
+</div>
+
+<script src="/static/js/loading.js"></script>
+
+</body>
+</html>
+            """
+        error_output = """
+<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head>
+<body>
+<a href="/">< Return</a><br><br>
+$error
+</body>
+</html>
+            """
+        
+        def get_error(error):
+            conn.close()
+            return(error_output.replace("$error", error))
+        
+        # Update session data
+        cherrypy.session["lastStartDate"] = start_date
+        cherrypy.session["lastEndDate"] = end_date
+        
+        # Create unix timestamp from input
+        try:
+            start_date = time.mktime(datetime.datetime.strptime(start_date, "%Y-%m-%d").timetuple()) - (5*60*60)
+            end_date = time.mktime(datetime.datetime.strptime(end_date, "%Y-%m-%d").timetuple()) + (19*60*60)
+        except:
+            return(get_error("Please enter a valid start and end date."))
+        start_date = start_date + time.timezone
+        end_date = end_date + time.timezone
+        
+        # Check that range is valid
+        if end_date < start_date:
+            conn.close()
+            return(get_error("End date is before start date."))
+
+        # Create list of names
+        if filter == "*":
+            cur.execute("SELECT * FROM people")
+            names = order_names(cur.fetchall())
+        else:
+            names = []
+            
+            # Get categories
+            cur.execute("SELECT * FROM possible_categories")
+            categories = cur.fetchall()
+            for i in range(0, len(categories)):
+                categories[i] = categories[i][0]
+        
+            # Iterate through input (if category, add names from category. if name, add to list)
+            input_list = filter.split(",")
+            for i in range(0, len(input_list)):
+                if input_list[i] in categories:
+                    cur.execute("SELECT name FROM categories WHERE category=?", (input_list[i],))
+                    names_in_cat = cur.fetchall()
+                    for f in range(0, len(names_in_cat)):
+                        if names_in_cat[f][0] not in names:
+                            names.append(names_in_cat[f][0])
+                else:
+                    if input_list[i] not in names:
+                        names.append(input_list[i])
+        
+        #Create request data
+        request = {"start_date": start_date, "end_date": end_date, "filter": names, "output": [], "complete": False}
+        record_requests.append(request)
+        request_id = len(record_requests) - 1
+        
+        #Start thread
+        request_threads.append(threading.Thread(target=record_request_thread, args=(request_id,), daemon=True))
+        request_threads[len(request_threads) - 1].start()
+
+        output = output.replace("$requestid", str(request_id))
+        return(output)
+
+    @cherrypy.expose
+    def request_status(self, request_id):
+        try:
+            complete = record_requests[int(request_id)]["complete"]
+        except:
+            return(str(0))
+        if complete:
+            return(str(1))
+        else:
+            return(str(0))
+
+    @cherrypy.expose
+    def show_records(self, request_id):
+        conn = sql.connect(database)
+        cur = conn.cursor()
+        
         output = """
 <html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 
@@ -362,8 +500,8 @@ display: none;
 </style>
 
 </head><body>
+<a href="/">< Return</a><br><br>
 
-<a href="$returnLink">< Return</a><br><br>
 $contents
 
 $pieDiv
@@ -373,189 +511,122 @@ $calendarDiv
 $timelineDiv
 
 </body></html>
-        """
-
+            """
+        
         pie_script = """
 <script type="text/javascript">
-  google.charts.setOnLoadCallback(drawChart);
-  function drawChart() {
-    var data = google.visualization.arrayToDataTable($pieData);
+google.charts.setOnLoadCallback(drawChart);
+function drawChart() {
+var data = google.visualization.arrayToDataTable($pieData);
 
-    var options = {
-      title: 'Work Time Distribution (by person)',
-      pieHole: 0.3,
-      chartArea: {left:20,top:40,width:'100%',height:'95%'},
-    };
+var options = {
+title: 'Work Time Distribution (by person)',
+pieHole: 0.3,
+chartArea: {left:20,top:40,width:'100%',height:'95%'},
+};
 
-    var chart = new google.visualization.PieChart(document.getElementById('piechart'));
-    chart.draw(data, options);
-  }
+var chart = new google.visualization.PieChart(document.getElementById('piechart'));
+chart.draw(data, options);
+}
 </script>
-        """
-
+            """
+        
         pie_div = """<br><div id="piechart" style="height: 500px; width: 100%;"></div>"""
-
+        
         cat_pie_script = """
 <script type="text/javascript">
-  google.charts.setOnLoadCallback(drawChart);
-  function drawChart() {
-    var data = google.visualization.arrayToDataTable($catPieData);
+google.charts.setOnLoadCallback(drawChart);
+function drawChart() {
+var data = google.visualization.arrayToDataTable($catPieData);
 
-    var options = {
-      title: 'Work Time Distribution (by category)',
-      pieHole: 0.3,
-      chartArea: {left:20,top:40,width:'100%',height:'95%'},
-    };
+var options = {
+title: 'Work Time Distribution (by category)',
+pieHole: 0.3,
+chartArea: {left:20,top:40,width:'100%',height:'95%'},
+};
 
-    var chart = new google.visualization.PieChart(document.getElementById('catpiechart'));
-    chart.draw(data, options);
-  }
+var chart = new google.visualization.PieChart(document.getElementById('catpiechart'));
+chart.draw(data, options);
+}
 </script>
-        """
-
+            """
+        
         cat_pie_div = """<br><div id="catpiechart" style="height: 500px; width: 100%;"></div>"""
-
+        
         histogram_script = """
 <script type="text/javascript">
-  google.charts.setOnLoadCallback(drawChart);
-  function drawChart() {
-    var data = google.visualization.arrayToDataTable($histogramData);
+google.charts.setOnLoadCallback(drawChart);
+function drawChart() {
+var data = google.visualization.arrayToDataTable($histogramData);
 
-    var options = {
-      title: 'Lengths of visits',
-      legend: { position: 'none' },
-      histogram: { bucketSize: 0.5 },
-      chartArea: {top:40,width:'90%',height:'80%'},
-    };
+var options = {
+title: 'Lengths of visits',
+legend: { position: 'none' },
+histogram: { bucketSize: 0.5 },
+chartArea: {top:40,width:'90%',height:'80%'},
+};
 
-    var chart = new google.visualization.Histogram(document.getElementById('histogram'));
-    chart.draw(data, options);
-  }
+var chart = new google.visualization.Histogram(document.getElementById('histogram'));
+chart.draw(data, options);
+}
 </script>
-        """
-
+            """
+        
         histogram_div = """<br><div id="histogram" style="height: 500px; width: 100%;"></div>"""
-
+        
         calendar_script = """
 <script type="text/javascript">
-  google.charts.setOnLoadCallback(drawChart);
-  function drawChart() {
-    var data = new google.visualization.DataTable();
-    data.addColumn({ type: 'date', id: 'Date' });
-    data.addColumn({ type: 'number', id: 'Hours' });
-    data.addRows($calendarData);
+google.charts.setOnLoadCallback(drawChart);
+function drawChart() {
+var data = new google.visualization.DataTable();
+data.addColumn({ type: 'date', id: 'Date' });
+data.addColumn({ type: 'number', id: 'Hours' });
+data.addRows($calendarData);
 
-    var options = {
-      title: "Hours By Day"
-    };
+var options = {
+title: "Hours By Day"
+};
 
-    var chart = new google.visualization.Calendar(document.getElementById('calendar'));
-    chart.draw(data, options);
-  }
+var chart = new google.visualization.Calendar(document.getElementById('calendar'));
+chart.draw(data, options);
+}
 </script>
-        """
-
+            """
+        
         calendar_div = """<br><div id="calendar" style="height: 500px; width: 100%;"></div>"""
-
+        
         timeline_script = """
 <script type="text/javascript">
-  google.charts.setOnLoadCallback(drawChart);
-  function drawChart() {
-    var container = document.getElementById('timeline');
-        var chart = new google.visualization.Timeline(container);
-        var dataTable = new google.visualization.DataTable();
+google.charts.setOnLoadCallback(drawChart);
+function drawChart() {
+var container = document.getElementById('timeline');
+var chart = new google.visualization.Timeline(container);
+var dataTable = new google.visualization.DataTable();
 
-        dataTable.addColumn({ type: 'string', id: 'Name' });
-        dataTable.addColumn({ type: 'string', id: 'Name' });
-        dataTable.addColumn({ type: 'date', id: 'Start' });
-        dataTable.addColumn({ type: 'date', id: 'End' });
-        dataTable.addRows([$timelineData]);
+dataTable.addColumn({ type: 'string', id: 'Name' });
+dataTable.addColumn({ type: 'string', id: 'Name' });
+dataTable.addColumn({ type: 'date', id: 'Start' });
+dataTable.addColumn({ type: 'date', id: 'End' });
+dataTable.addRows([$timelineData]);
 
-        var options = {
-          timeline: { showRowLabels: false },
-          hAxis: { format: 'h:mmaa' }
-        };
+var options = {
+timeline: { showRowLabels: false },
+hAxis: { format: 'h:mmaa' }
+};
 
-        chart.draw(dataTable, options);
+chart.draw(dataTable, options);
 
-  }
+}
 </script>
-        """
-
+            """
+        
         timeline_div = """<br><div id="timeline" style="height: 100%;"></div>"""
 
-        def get_error(error, output):
-            conn.close()
-            temp_output = output
-            temp_output = temp_output.replace("$timelineScript", "")
-            temp_output = temp_output.replace("$timelineDiv", "")
-            temp_output = temp_output.replace("$pieScript", "")
-            temp_output = temp_output.replace("$pieDiv", "")
-            temp_output = temp_output.replace("$catPieScript", "")
-            temp_output = temp_output.replace("$catPieDiv", "")
-            temp_output = temp_output.replace("$calendarScript", "")
-            temp_output = temp_output.replace("$calendarDiv", "")
-            temp_output = temp_output.replace("$histogramScript", "")
-            temp_output = temp_output.replace("$histogramDiv", "")
-            temp_output = temp_output.replace("$contents", error)
-            temp_output = temp_output.replace("$returnLink", "/")
-            return(temp_output)
-
-        # Update session data
-        cherrypy.session["lastStartDate"] = start_date
-        cherrypy.session["lastEndDate"] = end_date
-
-        # Create unix timestamp from input
-        try:
-            start_date = time.mktime(datetime.datetime.strptime(
-                start_date, "%Y-%m-%d").timetuple()) - (5*60*60)
-            end_date = time.mktime(datetime.datetime.strptime(
-                end_date, "%Y-%m-%d").timetuple()) + (19*60*60)
-        except:
-            return(get_error("Please enter a valid start and end date.", output))
-        start_date = start_date + time.timezone
-        end_date = end_date + time.timezone
-
-        # Check that range is valid
-        if end_date < start_date:
-            conn.close()
-            return(get_error("End date is before start date.", output))
-
-        # Create list of names
-        if filter == "*":
-            cur.execute("SELECT * FROM people")
-            names = order_names(cur.fetchall())
-        else:
-            names = []
-
-            # Get categories
-            cur.execute("SELECT * FROM possible_categories")
-            categories = cur.fetchall()
-            for i in range(0, len(categories)):
-                categories[i] = categories[i][0]
-
-            # Iterate through input (if category, add names from category. if name, add to list)
-            input_list = filter.split(",")
-            for i in range(0, len(input_list)):
-                if input_list[i] in categories:
-                    cur.execute(
-                        "SELECT name FROM categories WHERE category=?", (input_list[i],))
-                    names_in_cat = cur.fetchall()
-                    for f in range(0, len(names_in_cat)):
-                        if names_in_cat[f][0] not in names:
-                            names.append(names_in_cat[f][0])
-                else:
-                    if input_list[i] not in names:
-                        names.append(input_list[i])
-
-        # Get matching records from history
-        cur.execute("SELECT * FROM history WHERE timeIn>? AND timeIn<?", (start_date, end_date))
-        rows_temp = cur.fetchall()
-        rows = []
-        for i in range(0, len(rows_temp)):
-            if rows_temp[i][0] in names:
-                rows.append(rows_temp[i])
-        rows = sorted(rows, key=lambda x: (x[0], x[1]))
+        # Get data from request
+        request_id = int(request_id)
+        rows = sorted(record_requests[request_id]["output"], key=lambda x: (x["name"], x["timein"]))
+        start_date = record_requests[request_id]["start_date"]
+        end_date = record_requests[request_id]["end_date"]
 
         # Determine if single or multiple days and add appropriate graphs
 
@@ -563,7 +634,7 @@ $timelineDiv
         # Histogram -> any # of poeple, any # of days, more than one entry
         # Calendar -> any # of people, multiple days
         # Timeline -> multiple people, 1-4 days
-        if len(names) > 1:
+        if len(record_requests[request_id]["filter"]) > 1:
             gen_piechart = True
             output = output.replace("$pieScript", pie_script)
             output = output.replace("$pieDiv", pie_div)
@@ -595,7 +666,7 @@ $timelineDiv
             output = output.replace("$calendarDiv", calendar_div)
 
         if end_date - start_date <= (60*60*25*4):
-            if len(names) > 1:
+            if len(record_requests[request_id]["filter"]) > 1:
                 gen_timeline = True
                 output = output.replace("$timelineScript", timeline_script)
                 output = output.replace("$timelineDiv", timeline_div)
@@ -619,22 +690,28 @@ $timelineDiv
         extra_row_count = 0
         for row in rows:
             rowid += 1
-            if row[2] < 0:
-                timeout_formatted = "Still here"
-                raw_duration = round(time.time()) - row[1]
+            if row["timein"] < 0:
+                timein_formatted = "Out of range"
+                duration_start = start_date
             else:
-                timeout_formatted = time.strftime(
-                    date_format, time.localtime(row[2]))
-                raw_duration = row[2] - row[1]
-            timein_formatted = time.strftime(date_format, time.localtime(row[1]))
+                timein_formatted = time.strftime(date_format, time.localtime(row["timein"]))
+                duration_start = row["timein"]
+            
+            if row["timeout"] < 0:
+                timeout_formatted = "Out of range"
+                duration_end = end_date
+            else:
+                timeout_formatted = time.strftime(date_format, time.localtime(row["timeout"]))
+                duration_end = row["timeout"]
+            raw_duration = duration_end - duration_start
 
             # Add to total for pie chart
-            if row[0] not in internal_pie_data:
-                internal_pie_data[row[0]] = 0
-            internal_pie_data[row[0]] += raw_duration
+            if row["name"] not in internal_pie_data:
+                internal_pie_data[row["name"]] = 0
+            internal_pie_data[row["name"]] += raw_duration
 
             # Record for histogram
-            histogram_data.append([row[0], raw_duration])
+            histogram_data.append([row["name"], raw_duration])
 
             # Format Duration
             total_duration += raw_duration
@@ -648,7 +725,7 @@ $timelineDiv
                 rowclass = ""
 
             temp_contents = temp_contents + '<tr' + rowclass + '><td><a class="hidden" href="/person/' + \
-                row[0] + '">' + row[0] + "</a></td><td>" + timein_formatted + "</td><td>" + \
+                row["name"] + '">' + row["name"] + "</a></td><td>" + timein_formatted + "</td><td>" + \
                 timeout_formatted + "</td><td>" + duration_formatted + "</td></tr>"
 
         temp_contents = temp_contents + "</table>"
@@ -710,12 +787,18 @@ $timelineDiv
         if single_day == False:
             temp_calendar_data = {}
             for row in rows:
-                if row[2] < 0:
-                    raw_duration = round(time.time()) - row[1]
+                if row["timein"] < 0:
+                    duration_start = start_date
                 else:
-                    raw_duration = row[2] - row[1]
+                    duration_start = row["timein"]
+            
+                if row["timeout"] < 0:
+                    duration_end = end_date
+                else:
+                    duration_end = row["timeout"]
+                raw_duration = duration_end - duration_start
 
-                date = javascript_date(row[1], no_time=True)
+                date = javascript_date(row["timein"], no_time=True)
                 if date in temp_calendar_data:
                     temp_calendar_data[date] += raw_duration
                 else:
@@ -736,23 +819,23 @@ $timelineDiv
             i = -1
             for row in rows:
                 i += 1
-                if row[2] < 0:
-                    end_date = round(current_time())
+                if row["timein"] < 0:
+                    duration_start = start_date
                 else:
-                    end_date = row[2]
+                    duration_start = row["timein"]
+                
+                if row["timeout"] < 0:
+                    duration_end = end_date
+                else:
+                    duration_end = row["timeout"]
+                
                 timeline_data = timeline_data + \
-                    "['" + row[0] + "', '" + row[0] + "', " + \
-                    javascript_date(row[1]) + ", " + \
-                    javascript_date(end_date) + "]"
+                    "['" + row["name"] + "', '" + row["name"] + "', " + \
+                    javascript_date(duration_start) + ", " + \
+                    javascript_date(duration_end) + "]"
                 if i != len(rows):
                     timeline_data = timeline_data + ","
             output = output.replace("$timelineData", timeline_data)
-
-        # Add return link
-        if from_advanced == "1":
-            output = output.replace("$returnLink", "/advanced")
-        else:
-            output = output.replace("$returnLink", "/")
 
         conn.close()
         return(output.replace("$contents", temp_title + temp_contents))
@@ -830,19 +913,13 @@ updateSlideshow()
         cur.execute("SELECT DISTINCT name FROM people ORDER BY name")
         names_unfiltered = order_names(cur.fetchall())
 
-        # Get people here
-        cur.execute("SELECT name FROM live")
-        names_here = cur.fetchall()
-        for i in range(0, len(names_here)):
-            names_here[i] = names_here[i][0]
-
         # Generate list of names to display
         names = []
         for i in range(0, len(names_unfiltered)):
             if func == "signin":
                 display = True
             elif func == "signout":
-                display = names_unfiltered[i] in names_here
+                display = names_unfiltered[i] in recordkeeper.get_livecache()
             else:
                 display = True
             if display:
@@ -943,23 +1020,40 @@ $contents
 
             # Update database
             if func == "signin":
-                cur.execute("SELECT * FROM live WHERE name=?", (name,))
-                if len(cur.fetchall()) != 0:
-                    cur.execute(
-                        "UPDATE live SET lastSeen=? WHERE name=?", (now, name))
-                    cur.execute(
-                        "UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
-                else:
-                    cur.execute(
-                        "INSERT INTO live(name,lastSeen) VALUES (?,?)", (name, now))
-                    cur.execute(
-                        "INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name, now))
-            elif func == "signout":
-                cur.execute("DELETE FROM live WHERE name=?", (name,))
-                cur.execute(
-                    "UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now, name))
-                cur.execute(
-                    "INSERT INTO signed_out(name,timestamp) VALUES (?,?)", (name, now))
+                action = 1
+            else:
+                action = 2
+            
+            log_conn = sql.connect(log_database)
+            log_cur = log_conn.cursor()
+            id = log_cur.execute("SELECT id FROM lookup WHERE value=?", (name,)).fetchall()
+            if len(id) < 1:
+                max_id = log_cur.execute("SELECT max(id) FROM lookup").fetchall()[0][0]
+                id = max_id + 1
+                log_cur.execute("INSERT INTO lookup(id,value) VALUES (?,?)", (id,name))
+            else:
+                id = id[0][0]
+            log_cur.execute("INSERT INTO logs(timestamp,action,id) VALUES (?,?,?)", (now,action,id))
+            log_conn.commit()
+            log_conn.close()
+#            if func == "signin":
+#                cur.execute("SELECT * FROM live WHERE name=?", (name,))
+#                if len(cur.fetchall()) != 0:
+#                    cur.execute(
+#                        "UPDATE live SET lastSeen=? WHERE name=?", (now, name))
+#                    cur.execute(
+#                        "UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
+#                else:
+#                    cur.execute(
+#                        "INSERT INTO live(name,lastSeen) VALUES (?,?)", (name, now))
+#                    cur.execute(
+#                        "INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name, now))
+#            elif func == "signout":
+#                cur.execute("DELETE FROM live WHERE name=?", (name,))
+#                cur.execute(
+#                    "UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now, name))
+#                cur.execute(
+#                    "INSERT INTO signed_out(name,timestamp) VALUES (?,?)", (name, now))
 
             output = output.replace("$contents", """
 <div class="title">All set!</div>
@@ -1559,7 +1653,8 @@ $traceback
 
 
 if __name__ == "__main__":
+    recordkeeper.start_live_server()
     cherrypy.config.update({'server.socket_port': port, 'server.socket_host': host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
-                        "tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/favicon.ico"}})
+                        "tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/img/favicon.ico"}})

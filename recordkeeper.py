@@ -1,10 +1,10 @@
 import sqlite3 as sql
+import threading
 import time
-import json
 from datetime import datetime
 
 #Config
-log_db = "logs.db"
+log_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/logs.db"
 main_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/attendance.db"
 time_config = {
     "live_threshold": 40, #minutes, amount of time since last detection before removed from live
@@ -150,15 +150,15 @@ def get_range(start_time, end_time, filter=[], debug=False):
         if extend:
             if results[last_i]["timeout"] < record[0]:
                 results[last_i]["timeout"] = record[0]
-            results[last_i]["manual_signout"] = record[1] == "signout"
+            results[last_i]["manual_signout"] = record[1] == 2
             if record[1] == 1:
-                results[last_i]["manual_signin"] = true
+                results[last_i]["manual_signin"] = True
                     
         #Create new visit
         else:
             if record[1] == 2:
                 continue
-            results.append({"name": name, "timein": record[0], "timeout": record[0], "manual_signin": record[1] == "signin", "manual_signout": False})
+            results.append({"name": name, "timein": record[0], "timeout": record[0], "manual_signin": record[1] == 1, "manual_signout": False})
 
     #Process results
     for i in range(len(results))[::-1]:
@@ -201,6 +201,20 @@ def get_live(now):
             results.append(visit["name"])
     results.sort()
     return(results)
+
+live = []
+def get_livecache():
+    return(live)
+
+def start_live_server():
+    def live_server():
+        global live
+        while True:
+            live = get_live(time.time())
+            time.sleep(5)
+
+    server = threading.Thread(target=live_server, daemon=True)
+    server.start()
 
 #Testing
 if __name__ == "__main__":
