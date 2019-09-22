@@ -7,8 +7,8 @@ from datetime import datetime
 log_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/logs.db"
 main_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/attendance.db"
 time_config = {
-    "live_threshold": 40, #minutes, amount of time since last detection before removed from live
-    "auto_extension": 15, #minutes, amount of time automatic visits are extended past last detection
+    "live_threshold": 30, #minutes, amount of time since last detection before removed from live
+    "auto_extension": 10, #minutes, amount of time automatic visits are extended past last detection
     "reset_threshold": 75, #minutes, amount of time since last detection before new visit created
     "manual_grace": 15, #minutes, amount of time after manual signout where automatic signins are blocked
     "manual_timeout": 8 #hours, amount of time after last detection when signed out if manual sign in
