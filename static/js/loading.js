@@ -1,14 +1,10 @@
 var socket = new WebSocket("ws://" + window.location.hostname + ":8001")
 socket.onmessage = function(event) {
-    if (event.data == "1") {
+    if (event.data == requestId.toString()) {
         socket.close()
         window.location = "/show_records?request_id=" + requestId.toString()
     }
 }
-function checkStatus() {
-    socket.send(requestId)
-}
-setInterval(function() {checkStatus()}, 50)
 
 const funnyTexts = ["The robots are hard at work!",
                     "Searching for the missing clue...",
