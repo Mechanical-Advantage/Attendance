@@ -80,7 +80,7 @@ def refresh(connection, currentTime, data):
             if (currentTime-row[1]) >= 12*60*60:
                 log("Checked out " + name + " (not seen for 12 hours)")
                 checkOutTime = currentTime - 9*60*60
-                slack.post(name + " left at " + datetime.fromtimestamp(checkOutTime).strftime("%-I:%M %p on %a %-m/%-d") + " (A)") + " (A)")
+                slack.post(name + " left at " + datetime.fromtimestamp(checkOutTime).strftime("%-I:%M %p on %a %-m/%-d") + " (A)")
                 cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (checkOutTime,name))
             else:
                 log("Checked out " + name)
