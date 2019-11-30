@@ -79,8 +79,9 @@ def refresh(connection, currentTime, data):
             cur.execute("DELETE FROM live WHERE name=?", (name,))
             if (currentTime-row[1]) >= 12*60*60:
                 log("Checked out " + name + " (not seen for 12 hours)")
-                slack.post(name + " was timed out at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (A)")
-                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (currentTime,name))
+                checkOutTime = currentTime - 9*60*60
+                slack.post(name + " left at " + datetime.fromtimestamp(checkOutTime).strftime("%-I:%M %p on %a %-m/%-d") + " (A)") + " (A)")
+                cur.execute("UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (checkOutTime,name))
             else:
                 log("Checked out " + name)
                 checkOutTime = round(currentTime-((threshold/2)*60))
