@@ -915,6 +915,7 @@ $contents
                 if len(cur.fetchall()) != 0:
                     cur.execute("UPDATE live SET lastSeen=? WHERE name=?", (now,name))
                     cur.execute("UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
+                    slack.post(name + " signed in at " + time.strftime("%-I:%M %p on %a %-m/%-d") + " (M)")
                 else:
                     cur.execute("INSERT INTO live(name,lastSeen) VALUES (?,?)", (name,now))
                     cur.execute("INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name,now))
