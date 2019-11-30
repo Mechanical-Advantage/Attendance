@@ -1,11 +1,4 @@
 #!/bin/bash
-#Cycle probemon log
-echo 'Cycling monitor log'
-cd '/home/attendance/Attendance_data/logs'
-date=`date '+%m-%d-%Y at %I:%M:%S %p'`
-cp 'monitor.log' "./monitor/$date.log"
-echo '' > 'monitor.log'
-
 #Cycle server log
 echo 'Cycling server log'
 cd '/home/attendance/Attendance_data/logs'

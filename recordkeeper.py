@@ -4,8 +4,8 @@ import time
 from datetime import datetime
 
 #Config
-log_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/logs.db"
-main_db = "/Users/jonah/Documents/Attendance_test/Attendance_data/attendance.db"
+log_db = "/home/attendance/Attendance_data/logs.db"
+main_db = "/home/attendance/Attendance_data/attendance.db"
 time_config = {
     "live_threshold": 30, #minutes, amount of time since last detection before removed from live
     "auto_extension": 10, #minutes, amount of time automatic visits are extended past last detection
@@ -203,14 +203,19 @@ def get_live(now):
     return(results)
 
 live = []
+live_ready = False
 def get_livecache():
     return(live)
+    
+def get_liveready():
+	return(live_ready)
 
 def start_live_server():
     def live_server():
         global live
         while True:
             live = get_live(time.time())
+            live_ready = True
             time.sleep(5)
 
     server = threading.Thread(target=live_server, daemon=True)
@@ -218,7 +223,7 @@ def start_live_server():
 
 #Testing
 if __name__ == "__main__":
-    #print_visits(get_range(1562731200, 1562817600))
+    print_visits(get_range(1562731200, 1562817600, debug=True))
     #print_visits(get_range(1567569600, 1567656000))
-    print_visits(get_range(0, 2000000000, debug=True))
+    #print_visits(get_range(0, 2000000000, debug=True))
     #print(get_live(1568936984))

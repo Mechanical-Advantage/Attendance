@@ -3,6 +3,7 @@ import recordkeeper
 from simple_websocket_server import WebSocketServer, WebSocket
 import inflect
 import sqlite3 as sql
+import requests
 import threading
 from random import shuffle
 import math
@@ -17,8 +18,9 @@ port = 8000
 socket_port = 8001
 database = "attendance.db"
 log_database = "logs.db"
-root_main = "/Users/jonah/Documents/Attendance/"
-root_data = "/Users/jonah/Documents/Attendance_test/Attendance_data/"
+root_main = "/home/attendance/Attendance/"
+root_data = "/home/attendance/Attendance_data/"
+enable_slack = False
 
 # Setup
 database = root_data + database
@@ -26,6 +28,11 @@ log_database = root_data + log_database
 language_manager = inflect.engine()
 record_requests = []
 request_threads = []
+if enable_slack:
+	slack_url = open(root_data + "slack_url.txt", "r").read()
+	
+def slack_post(message):
+	requests.post(slack_url, json={"text": message})
 
 def record_request_thread(request_id):
     request = record_requests[request_id]
@@ -1674,11 +1681,30 @@ def run_status_server():
     cherrypy.log("Starting web socket server on ws://" + host + ":" + str(socket_port))
     server.serve_forever()
     cherrypy.log("Stopping web socket server on ws://" + host + ":" + str(socket_port))
+    
+def slack_poster():
+	while not recordkeeper.get_liveready():
+		time.sleep(1)
+	cherrypy.log("Live data ready, starting slack poster")
+	old_live = recordkeeper.get_livecache()
+	while True:
+		time.sleep(1)
+		new_live = recordkeeper.get_livecache()
+		if new_live != old_live:
+			for old_name in old_live:
+				if old_name not in new_live:
+					slack_post(old_name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+			for new_name in new_live:
+				if new_name not in old_live:
+					slack_post(new_name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
 
 if __name__ == "__main__":
     recordkeeper.start_live_server()
     server_thread = threading.Thread(target=run_status_server, daemon=True)
     server_thread.start()
+    if enable_slack:
+    	slack_thread = threading.Thread(target=slack_poster, daemon=True)
+    	slack_thread.start()
     cherrypy.config.update({'server.socket_port': port, 'server.host': host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {

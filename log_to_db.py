@@ -2,7 +2,7 @@ import sqlite3 as sql
 import os
 
 #Config
-db_path = "logs.db"
+db_path = "Attendance_data/logs.db"
 probemon_path = "Attendance_data/logs/probemon/"
 monitor_path = "Attendance_data/logs/monitor/"
 exclude = ["c4:17:fe:af:5d:a5", "00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"]
