@@ -28,12 +28,25 @@ def print_visits(visits):
         else:
             print(datetime.fromtimestamp(visit["timeout"]).strftime("%-I:%M %p %a %b %-d"))
 
-def get_range(start_time, end_time, filter=[], debug=False):
+def get_range(start_time, end_time, filter=[], debug=False, cached=False):
     #Initialization
     log_conn = sql.connect(log_db)
     log_cur = log_conn.cursor()
     main_conn = sql.connect(main_db)
     main_cur = main_conn.cursor()
+
+    #If using cache, get data
+    if cached:
+        where_query = ""
+        if len(filter) != 0:
+            where_query = " AND ("
+            for name in filter:
+                where_query += "name='" + name + "' OR "
+            where_query = where_query[:-4] + ")"
+        records = main_cur.execute("SELECT * FROM history_cache WHERE ((time_in > ? AND time_in < ?) OR (time_out > ? AND time_out < ?))" + where_query + " ORDER BY time_in ASC", (start_time,end_time,start_time,end_time)).fetchall()
+        log_conn.close()
+        main_conn.close()
+        return([{"name": x[0], "timein": x[1], "timeout": x[2]} for x in records])
     
     results = []
     scan_start = start_time - (time_config["manual_timeout"] * 3600)
@@ -223,7 +236,8 @@ def start_live_server():
 
 #Testing
 if __name__ == "__main__":
-    print_visits(get_range(1562731200, 1562817600, debug=True))
+    print_visits(get_range(1562731200, 1562817600, debug=True, cached=True))
     #print_visits(get_range(1567569600, 1567656000))
-    #print_visits(get_range(0, 2000000000, debug=True))
+    #visits = get_range(0, 2000000000, debug=True)
+    #print(len(visits))
     #print(get_live(1568936984))

@@ -141,6 +141,7 @@ iframe {
 
 <form method="get" action="/load_records">
 <input type="date" name="start_date" value="$start_value"> to <input type="date" name="end_date" value="$end_value"> for person <select name="filter"><option value="*">Everyone</option>$selectionHtml</select>
+<input type="hidden" name="source" value="cache"></input>
 <button type="submit">Get Records</button>
 </form>
 
@@ -229,7 +230,11 @@ refresh();
 <a href="/">< Return</a><br><br>
 <form id="mainForm" method="get" action="/load_records">
 Start date: <input type="date" name="start_date" value="$start_value"><br>
-End date: <input type="date" name="end_date" value="$end_value">
+End date: <input type="date" name="end_date" value="$end_value"><br>
+Source: <select name="source">
+<option value="cache">Nightly Cache (faster, especially for large queries)</option>
+<option value="live">Live Analysis (slower, use to get data from today)</option>
+</select>
 </form>
 <button onclick="setChecks(true);">Check All</button><button onclick="setChecks(false);">Uncheck All</button><br><br>
 
@@ -353,7 +358,7 @@ left: 0px;
         return(time)
     
     @cherrypy.expose
-    def load_records(self, start_date="", end_date="", filter="*"):
+    def load_records(self, start_date="", end_date="", filter="*", source="cache"):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
@@ -409,6 +414,11 @@ $error
 </body>
 </html>
             """
+        redirect_output = """
+<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<meta http-equiv="refresh" content="0; url=/show_records?request_id=$requestid" />
+</head><body></body></html>
+        """
         
         def get_error(error):
             conn.close()
@@ -463,11 +473,15 @@ $error
         record_requests.append(request)
         request_id = len(record_requests) - 1
         
-        #Start thread
-        request_threads.append(threading.Thread(target=record_request_thread, args=(request_id,), daemon=True))
-        request_threads[len(request_threads) - 1].start()
-
-        output = output.replace("$requestid", str(request_id))
+        #Start thread or get data
+        if source == "live":
+            request_threads.append(threading.Thread(target=record_request_thread, args=(request_id,), daemon=True))
+            request_threads[len(request_threads) - 1].start()
+            output = output.replace("$requestid", str(request_id))
+        else:
+            record_requests[request_id]["output"] = recordkeeper.get_range(record_requests[request_id]["start_date"], record_requests[request_id]["end_date"], filter=record_requests[request_id]["filter"], cached=True)
+            record_requests[request_id]["complete"] = True
+            output = redirect_output.replace("$requestid", str(request_id))
         return(output)
 
     @cherrypy.expose
@@ -1041,29 +1055,15 @@ $contents
             log_cur.execute("INSERT INTO logs(timestamp,action,id) VALUES (?,?,?)", (now,action,id))
             log_conn.commit()
             log_conn.close()
-#            if func == "signin":
-#                cur.execute("SELECT * FROM live WHERE name=?", (name,))
-#                if len(cur.fetchall()) != 0:
-#                    cur.execute(
-#                        "UPDATE live SET lastSeen=? WHERE name=?", (now, name))
-#                    cur.execute(
-#                        "UPDATE history SET timeOut=-2 WHERE name=? AND timeOut=-1", (name,))
-#                else:
-#                    cur.execute(
-#                        "INSERT INTO live(name,lastSeen) VALUES (?,?)", (name, now))
-#                    cur.execute(
-#                        "INSERT INTO history(name,timeIn,timeOut) VALUES (?,?,-2)", (name, now))
-#            elif func == "signout":
-#                cur.execute("DELETE FROM live WHERE name=?", (name,))
-#                cur.execute(
-#                    "UPDATE history SET timeOut=? WHERE timeOut<0 AND name=?", (now, name))
-#                cur.execute(
-#                    "INSERT INTO signed_out(name,timestamp) VALUES (?,?)", (name, now))
 
             output = output.replace("$contents", """
-<div class="title">All set!</div>
+<div class="title">All set!<br><br>Your name will $action in a few minutes.</div>
 <meta http-equiv="refresh" content="3; url=/manual" />
             """)
+            if func == "signin":
+                output = output.replace("$action", "appear")
+            else:
+                output = output.replace("$action", "disappear")
 
         conn.commit()
         conn.close()
