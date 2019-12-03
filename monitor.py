@@ -13,9 +13,9 @@ import os
 log_db = "/home/attendance/Attendance_data/logs.db"
 write_wait = 10 # secs, length of time between writes
 interfaces = {
-	# "INTERN": {
-	# 	"standard": "wlp2s0"
-	# },
+	"INTERN": {
+		"standard": "wlp2s0"
+	},
 	# "BELKIN": {
 	# 	"standard": "wlx00173f847fbf"
 	# },
@@ -98,21 +98,21 @@ signal.signal(signal.SIGINT, shutdown)
 def monitor(code):
 	global interfaces
 	global write_queue
-	if start_monitor(code):
-		def process(packet):
-			try:
-				record_time = round(time.time())
-				record_value = packet.wlan.sa_resolved
-				should_log = packet.wlan.sa_resolved not in no_log
-			except:
-				x = 0
-			else:
-				if should_log:
-					print(str(record_time) + " : " + code + " : " + record_value)
-					write_queue.append([record_time, record_value])
+
+	def process(packet):
+		try:
+			record_time = round(time.time())
+			record_value = packet.wlan.sa_resolved
+			should_log = packet.wlan.sa_resolved not in no_log
+		except:
+			x = 0
+		else:
+			if should_log:
+				print(str(record_time) + " : " + code + " : " + record_value)
+				write_queue.append([record_time, record_value])
 		
-		capture = pyshark.LiveCapture(interface=interfaces[code]["monitor"])
-		capture.apply_on_packets(process)
+	capture = pyshark.LiveCapture(interface=interfaces[code]["monitor"])
+	capture.apply_on_packets(process)
 		
 #Run db write thread
 write_queue = []
@@ -149,7 +149,8 @@ writer.start()
 #Start monitors
 monitors = []
 for code in interfaces.keys():
-	monitors.append(threading.Thread(target=monitor, args=(code,), daemon=True))
-	monitors[len(monitors)-1].start()
+	if start_monitor(code):
+		monitors.append(threading.Thread(target=monitor, args=(code,), daemon=True))
+		monitors[len(monitors)-1].start()
 
 signal.pause()
