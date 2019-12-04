@@ -1,3 +1,4 @@
+import config
 import cherrypy
 import recordkeeper
 from simple_websocket_server import WebSocketServer, WebSocket
@@ -12,24 +13,14 @@ import datetime
 import subprocess
 import os
 
-# Config
-host = '0.0.0.0'
-port = 8000
-socket_port = 8001
-database = "attendance.db"
-log_database = "logs.db"
-root_main = "/home/attendance/Attendance/"
-root_data = "/home/attendance/Attendance_data/"
-enable_slack = False
-
 # Setup
-database = root_data + database
-log_database = root_data + log_database
+database = config.data + "/attendance.db"
+log_database = config.data + "/logs.db"
 language_manager = inflect.engine()
 record_requests = []
 request_threads = []
-if enable_slack:
-	slack_url = open(root_data + "slack_url.txt", "r").read()
+if config.enable_slack:
+	slack_url = open(config.data + "/slack_url.txt", "r").read()
 	
 def slack_post(message):
 	requests.post(slack_url, json={"text": message})
@@ -136,7 +127,6 @@ iframe {
   height: 500px;
 }
 </style>
-<script src="/static/js/lastUpdate.js"></script>
 </head><body>
 
 <form method="get" action="/load_records">
@@ -148,8 +138,6 @@ iframe {
 <a href="/advanced">Advanced Get Records</a><br><br>
 <a href="/manual">Manual Sign In/Out</a><br><br>
 <a href="/peoplelist">Manage People</a>
-
-<br><p id="lastUpdate" style="font-style: italic;"></p>
 
 <h3>People Here Now</h3>
 <iframe id="liveView" src="/live/homepage" name="liveView"></iframe>
@@ -347,15 +335,6 @@ left: 0px;
 
         conn.close()
         return(output)
-
-    @cherrypy.expose
-    def last_update(self):
-        conn = sql.connect(database)
-        cur = conn.cursor()
-        cur.execute("SELECT value FROM general WHERE key='last_update'")
-        time = str(cur.fetchall()[0][0])
-        conn.close()
-        return(time)
     
     @cherrypy.expose
     def load_records(self, start_date="", end_date="", filter="*", source="cache"):
@@ -900,7 +879,7 @@ updateSlideshow()
 </body></html>
         """
 
-        imagelist = os.listdir(root_main + "static/backgrounds")
+        imagelist = os.listdir(config.repo + "/static/backgrounds")
         shuffle(imagelist)
         imagelist = str(imagelist).replace("'", '"')
         output = output.replace("$imagelist", imagelist)
@@ -1171,7 +1150,7 @@ What is your $description's MAC address? <input type="text" name="mac">
         output_auto = """
 Next, please go to a web browser on your $description and type in the address:<br><br>
 
-<div style="font-family: monospace;">http://attendance.local/add</div>
+<div style="font-family: monospace;">http://$hostname/add</div>
 
 <br>You must be connected to the HS-Access or HS-Access_5GHz network.
 <br><br><a href="/manual_add_device_stage_3?name=$name&device_type=$device_type&description=$description&force_manual=1" class="show">I can't do that</a>
@@ -1240,6 +1219,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         output = output.replace("$name", name)
         output = output.replace("$device_type", device_type)
         output = output.replace("$description", description)
+        output = output.replace("$hostname", config.web_hostname)
         return(output)
 
     @cherrypy.expose
@@ -1677,10 +1657,10 @@ class status_server(WebSocket):
         clients.remove(self)
 
 def run_status_server():
-    server = WebSocketServer(host, socket_port, status_server)
-    cherrypy.log("Starting web socket server on ws://" + host + ":" + str(socket_port))
+    server = WebSocketServer(config.web_host, config.web_socket_port, status_server)
+    cherrypy.log("Starting web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
     server.serve_forever()
-    cherrypy.log("Stopping web socket server on ws://" + host + ":" + str(socket_port))
+    cherrypy.log("Stopping web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
     
 def slack_poster():
 	while not recordkeeper.get_liveready():
@@ -1702,10 +1682,10 @@ if __name__ == "__main__":
     recordkeeper.start_live_server()
     server_thread = threading.Thread(target=run_status_server, daemon=True)
     server_thread.start()
-    if enable_slack:
+    if config.enable_slack:
     	slack_thread = threading.Thread(target=slack_poster, daemon=True)
     	slack_thread.start()
-    cherrypy.config.update({'server.socket_port': port, 'server.host': host,
+    cherrypy.config.update({'server.socket_port': config.web_port, 'server.host': config.web_host,
                             'error_page.500': error_page, 'error_page.404': error_page})
-    cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": root_data + "logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
-                        "tools.staticdir.on": True, "tools.staticdir.dir": root_main + "static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": root_main + "static/img/favicon.ico"}})
+    cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
+                        "tools.staticdir.on": True, "tools.staticdir.dir": config.repo + "/static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": config.repo + "/static/img/favicon.ico"}})

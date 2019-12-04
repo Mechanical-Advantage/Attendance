@@ -1,3 +1,4 @@
+import config
 import recordkeeper
 import sqlite3 as sql
 import time
@@ -6,7 +7,7 @@ import math
 start_time = round(time.time())
 records = recordkeeper.get_range(0, start_time)
 
-conn = sql.connect("/home/attendance/Attendance_data/attendance.db")
+conn = sql.connect(config.data + "/attendance.db")
 cur = conn.cursor()
 cur.execute("DELETE FROM history_cache")
 for record in records:

@@ -1,3 +1,4 @@
+import config
 import pyshark
 import sqlite3 as sql
 import time
@@ -9,21 +10,7 @@ import sys
 import subprocess
 import os
 
-#Config
-log_db = "/home/attendance/Attendance_data/logs.db"
-write_wait = 10 # secs, length of time between writes
-interfaces = {
-	"INTERN": {
-		"standard": "wlp2s0"
-	},
-	# "BELKIN": {
-	# 	"standard": "wlx00173f847fbf"
-	# },
-	"PROXIM": {
-		"standard": "wlx0020a6f69098"
-	}
-}
-no_log = ["00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"] #BELKIN, PROXIM
+interfaces = config.mon_interfaces
 
 def run_command(args):
 	process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -103,7 +90,7 @@ def monitor(code):
 		try:
 			record_time = round(time.time())
 			record_value = packet.wlan.sa_resolved
-			should_log = packet.wlan.sa_resolved not in no_log
+			should_log = packet.wlan.sa_resolved not in config.mon_nolog
 		except:
 			x = 0
 		else:
@@ -118,7 +105,7 @@ def monitor(code):
 write_queue = []
 def writer():
 	global write_queue
-	conn = sql.connect(log_db)
+	conn = sql.connect(config.data + "/logs.db")
 	cur = conn.cursor()
 
 	#Get id lookup table
@@ -129,7 +116,7 @@ def writer():
 	print("Loaded id lookup table, ready to write")
 
 	while True:
-		time.sleep(write_wait)
+		time.sleep(config.mon_write_wait)
 		write_queue_internal = write_queue
 		write_queue = []
 		print(str(round(time.time())) + " : WRITER : Writing " + str(len(write_queue_internal)) + " records")

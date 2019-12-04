@@ -1,3 +1,4 @@
+import config
 import sqlite3 as sql
 import sys
 
@@ -10,6 +11,6 @@ else:
     else:
         toWrite = 0
     
-conn = sql.connect("/home/attendance/Attendance_data/attendance.db")
+conn = sql.connect(config.data + "/attendance.db")
 conn.cursor().execute("UPDATE general SET value=? WHERE key='pure_slideshow'", (toWrite,))
 conn.commit()

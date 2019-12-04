@@ -1,42 +1,43 @@
 #!/bin/bash
+#Config
+REPO_PATH='/home/attendance/Attendance'
+DATA_PATH='/home/attendance/Attendance_data'
+BACKUP_PATH='/backup-usb'
+SIZE_LIMIT='28672' #in megabytes
+
 log () {
-    echo [`date`] "$1" >> '/home/attendance/Attendance_data/logs/refreshlog.log'
+    echo [`date`] "$1" >> "$DATA_PATH/logs/refreshlog.log"
 }
 
 #Generate history cache
 log 'Creating history cache'
-python3 /home/attendance/Attendance/cache_history.py
+python3 "$REPO_PATH/cache_history.py"
 
 #Cycle server log
 log 'Cycling server log'
-cd '/home/attendance/Attendance_data/logs'
+cd "$DATA_PATH/logs"
 cp 'serverlog.log' ./serverlogs/"`date`".log
 echo '' > 'serverlog.log'
 
-#Create backup
-sizeLimit='28672' #in megabytes (1 gigabyte = 1024 megabytes); currently set at 28 gigabytes
-targetPath='/backup-usb'
-
-cd '/home/attendance/'
-
 #Create zip
+cd ../..
 log 'Creating zip file'
-zip -r backup.zip Attendance_data > /dev/null
+zip -r backup.zip "$DATA_PATH" > /dev/null
 
 #Get size of data and calculate target size
 du_output=`du -sb ./backup.zip`
 du_array=($du_output)
 dataSize=${du_array[0]}
-targetSize=$(expr $sizeLimit \* 1048576 - $dataSize)
+targetSize=$(expr $SIZE_LIMIT \* 1048576 - $dataSize)
 
 #Find current size
-du_output=`du -sb "$targetPath"`
+du_output=`du -sb "$BACKUP_PATH"`
 du_array=($du_output)
 size=${du_array[0]}
 
 while [ "$size" -gt "$targetSize" ]; do
     #Delete oldest backup
-    filename=`ls -1r "$targetPath" | tail -n 1`
+    filename=`ls -1r "$BACKUP_PATH" | tail -n 1`
     #Check if folder empty
     if [ "$filename" == '' ]; then
         log 'Cannot create backup - capacity too small'
@@ -44,21 +45,22 @@ while [ "$size" -gt "$targetSize" ]; do
     fi
 
     log "Deleting backup '$filename'"
-    rm -r "$targetPath"/"$filename"
+    rm -r "$BACKUP_PATH"/"$filename"
 
     #Get new size
-    du_output=`du -sb "$targetPath"`
+    du_output=`du -sb "$BACKUP_PATH"`
     du_array=($du_output)
     size=${du_array[0]}
 done
 
 log 'Copying data'
 currentTime=`date '+%s - %m-%d-%Y'`
-cp -r --no-preserve=mode ./backup.zip "$targetPath"/"$currentTime".zip
-du -sh "$targetPath"
+cp -r --no-preserve=mode ./backup.zip "$BACKUP_PATH"/"$currentTime".zip
+du -sh "$BACKUP_PATH"
 
 log 'Deleting zip file'
 rm ./backup.zip
+log 'Finished refresh'
 
 #Reboot once a week
 if [ `date +%u` == 7 ]; then

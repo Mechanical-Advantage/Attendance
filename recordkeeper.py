@@ -1,18 +1,10 @@
+import config
 import sqlite3 as sql
 import threading
 import time
 from datetime import datetime
 
-#Config
-log_db = "/home/attendance/Attendance_data/logs.db"
-main_db = "/home/attendance/Attendance_data/attendance.db"
-time_config = {
-    "live_threshold": 30, #minutes, amount of time since last detection before removed from live
-    "auto_extension": 10, #minutes, amount of time automatic visits are extended past last detection
-    "reset_threshold": 75, #minutes, amount of time since last detection before new visit created
-    "manual_grace": 15, #minutes, amount of time after manual signout where automatic signins are blocked
-    "manual_timeout": 8 #hours, amount of time after last detection when signed out if manual sign in
-}
+time_config = config.recordkeeper_times
 
 def print_visits(visits):
     print(len(visits), "visits")
@@ -30,9 +22,9 @@ def print_visits(visits):
 
 def get_range(start_time, end_time, filter=[], debug=False, cached=False):
     #Initialization
-    log_conn = sql.connect(log_db)
+    log_conn = sql.connect(config.data + "/logs.db")
     log_cur = log_conn.cursor()
-    main_conn = sql.connect(main_db)
+    main_conn = sql.connect(config.data + "/attendance.db")
     main_cur = main_conn.cursor()
 
     #If using cache, get data
