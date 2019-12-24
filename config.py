@@ -33,7 +33,7 @@ recordkeeper_times = {
 
 # Web server
 web_host = "0.0.0.0"
-web_hostname = "attendance.local"
+web_forced_advised = None # not used for hosting
 web_port = 8000
 web_socket_port = 8001
 enable_slack = False

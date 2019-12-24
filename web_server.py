@@ -21,6 +21,18 @@ record_requests = []
 request_threads = []
 if config.enable_slack:
 	slack_url = open(config.data + "/slack_url.txt", "r").read()
+
+# Get ip address
+if config.web_forced_advised != None:
+    advised_ip = config.web_forced_advised
+else:
+    ifconfig_result = subprocess.run(["ifconfig"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+    ifconfig_result = [x.split("inet ")[1].split(" ")[0] for x in ifconfig_result.split("\n") if "inet " in x]
+    ifconfig_result = [x for x in ifconfig_result if x != "127.0.0.1"]
+    if len(ifconfig_result) < 1:
+        ifconfig_result.append("127.0.0.1")
+    advised_ip = ifconfig_result[0]
+
 	
 def slack_post(message):
 	requests.post(slack_url, json={"text": message})
@@ -1219,7 +1231,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         output = output.replace("$name", name)
         output = output.replace("$device_type", device_type)
         output = output.replace("$description", description)
-        output = output.replace("$hostname", config.web_hostname)
+        output = output.replace("$hostname", advised_ip)
         return(output)
 
     @cherrypy.expose
