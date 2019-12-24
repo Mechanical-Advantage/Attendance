@@ -1,4 +1,6 @@
-var socket = new WebSocket("ws://" + window.location.hostname + ":8001")
+const socketPort = 8001
+
+var socket = new WebSocket("ws://" + window.location.hostname + ":" + socketPort.toString())
 socket.onmessage = function(event) {
     if (event.data == requestId.toString()) {
         socket.close()
