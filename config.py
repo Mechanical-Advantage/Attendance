@@ -7,6 +7,8 @@ data = "/home/attendance/Attendance_data"
 
 # Monitor
 mon_write_wait = 10 # secs, how long to wait between db writes when monitoring
+mon_restart_timeout = 180 # secs, time from last packet at which monitoring interface restarted
+mon_restart_checkperiod = 15 # secs, frequency at which to check for restart timeout
 mon_nolog = ["00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"] # which macs to skip logging (router, wifi adapters, etc.)
 mon_interfaces = {
 	"INTERN": {
@@ -14,7 +16,7 @@ mon_interfaces = {
 	},
 	# "BELKIN": {
 	# 	"standard": "wlx00173f847fbf"
-	# },
+	# }
 	"PROXIM": {
 		"standard": "wlx0020a6f69098"
 	}
@@ -31,7 +33,7 @@ recordkeeper_times = {
 
 # Web server
 web_host = "0.0.0.0"
-web_hostname = "attendance2.local"
+web_hostname = "attendance.local"
 web_port = 8000
 web_socket_port = 8001
 enable_slack = False

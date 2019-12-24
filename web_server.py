@@ -221,7 +221,7 @@ Start date: <input type="date" name="start_date" value="$start_value"><br>
 End date: <input type="date" name="end_date" value="$end_value"><br>
 Source: <select name="source">
 <option value="cache">Nightly Cache (faster, especially for large queries)</option>
-<option value="live">Live Analysis (slower, use to get data from today)</option>
+<option value="live">Live Analysis (slower, includes data from current day)</option>
 </select>
 </form>
 <button onclick="setChecks(true);">Check All</button><button onclick="setChecks(false);">Uncheck All</button><br><br>

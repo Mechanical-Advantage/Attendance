@@ -53,7 +53,7 @@ def start_monitor(code):
 		else:
 			mon_number += 1
 			run_command(["sudo", "iw", "dev", result, "del"])
-	if mon_number > 99:
+	if mon_number >= 99:
 		print("Failed to start monitor " + code + " - could not create virutal interface")
 		return(False)
 
@@ -66,18 +66,18 @@ def start_monitor(code):
 	print("Started monitor " + code + " on '" + interfaces[code]["monitor"] + "'")
 	return(True)
 		
-def stop_monitors():
+def stop_monitor(code):
 	global interfaces
-	for code in interfaces.keys():
-		output = output = run_command(["sudo", "iw", "dev", interfaces[code]["monitor"], "del"])
-		if output == "":
-			print("Stopped monitor " + code)
-		else:
-			print("Failed to stop monitor " + code + " on '" + interfaces[code]["monitor"])
+	output = output = run_command(["sudo", "iw", "dev", interfaces[code]["monitor"], "del"])
+	if output == "":
+		print("Stopped monitor " + code)
+	else:
+		print("Failed to stop monitor " + code + " on '" + interfaces[code]["monitor"])
 
 def shutdown(sig, frame):
 	print("\nStarting clean shutdown. Please wait for completition.")
-	stop_monitors()
+	for code in interfaces.keys():
+		stop_monitor(code)
 	sys.exit(0)
 	
 signal.signal(signal.SIGINT, shutdown)
@@ -85,8 +85,11 @@ signal.signal(signal.SIGINT, shutdown)
 def monitor(code):
 	global interfaces
 	global write_queue
+	last_packet = time.time()
 
 	def process(packet):
+		nonlocal last_packet
+		last_packet = time.time()
 		try:
 			record_time = round(time.time())
 			record_value = packet.wlan.sa_resolved
@@ -99,7 +102,16 @@ def monitor(code):
 				write_queue.append([record_time, record_value])
 		
 	capture = pyshark.LiveCapture(interface=interfaces[code]["monitor"])
-	capture.apply_on_packets(process)
+	while True:
+		try:
+			capture.apply_on_packets(process, timeout=config.mon_restart_checkperiod)
+		except:
+			pass
+		if time.time() - last_packet > config.mon_restart_timeout:
+			stop_monitor(code)
+			time.sleep(3)
+			start_monitor(code)
+			capture = pyshark.LiveCapture(interface=interfaces[code]["monitor"])
 		
 #Run db write thread
 write_queue = []
@@ -139,5 +151,6 @@ for code in interfaces.keys():
 	if start_monitor(code):
 		monitors.append(threading.Thread(target=monitor, args=(code,), daemon=True))
 		monitors[len(monitors)-1].start()
+	time.sleep(3)
 
 signal.pause()
