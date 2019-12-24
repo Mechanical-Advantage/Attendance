@@ -132,7 +132,7 @@ class main_server(object):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"><style>
+<html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"><style>
 iframe {
   border: none;
   width: 100%;
@@ -186,14 +186,14 @@ function reloadLive() {
         output = output.replace("$end_value", end_value)
 
         conn.close()
-        return(output)
+        return(output.replace("$title", config.admin_title))
 
     @cherrypy.expose
     def advanced(self):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
+<html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 <script>
 
 function refresh() {
@@ -284,7 +284,7 @@ $check_html
         output = output.replace("$end_value", end_value)
 
         conn.close()
-        return(output)
+        return(output.replace("$title", config.admin_title))
 
     @cherrypy.expose
     def live(self, version="homepage"):
@@ -353,7 +353,7 @@ left: 0px;
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
+<html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 <style>
 
 .center {
@@ -398,7 +398,7 @@ Please wait
 </html>
             """
         error_output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head>
+<html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head>
 <body>
 <a href="/">< Return</a><br><br>
 $error
@@ -413,7 +413,7 @@ $error
         
         def get_error(error):
             conn.close()
-            return(error_output.replace("$error", error))
+            return(error_output.replace("$error", error).replace("$title", config.admin_title))
         
         # Update session data
         cherrypy.session["lastStartDate"] = start_date
@@ -473,7 +473,7 @@ $error
             record_requests[request_id]["output"] = recordkeeper.get_range(record_requests[request_id]["start_date"], record_requests[request_id]["end_date"], filter=record_requests[request_id]["filter"], cached=True)
             record_requests[request_id]["complete"] = True
             output = redirect_output.replace("$requestid", str(request_id))
-        return(output)
+        return(output.replace("$title", config.admin_title))
 
     @cherrypy.expose
     def show_records(self, request_id):
@@ -481,7 +481,7 @@ $error
         cur = conn.cursor()
         
         output = """
-<html><head><title>6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
+<html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <script type="text/javascript">google.charts.load('current', {'packages':["corechart", "timeline", "calendar"]});</script>
@@ -848,12 +848,12 @@ chart.draw(dataTable, options);
             output = output.replace("$timelineData", timeline_data)
 
         conn.close()
-        return(output.replace("$contents", temp_title + temp_contents))
+        return(output.replace("$contents", temp_title + temp_contents).replace("$title", config.admin_title))
 
     @cherrypy.expose
     def manual(self):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script>
 window.setInterval("updateDisplayType();", 5000);
 window.setInterval("reloadIFrame();", 60000);
@@ -896,14 +896,14 @@ updateSlideshow()
         imagelist = str(imagelist).replace("'", '"')
         output = output.replace("$imagelist", imagelist)
 
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_select(self, func="signin", letter=0):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 
 <div class="title">$prompt</div>
 <div style="position: absolute; left: 50%; transform: translate(-50%, 0); top: 50px; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div>
@@ -974,14 +974,14 @@ updateSlideshow()
         output = output.replace("$tableHtml", temp_table_html)
 
         conn.close()
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_internal(self, name="John Doe", func="info"):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 $contents
 </body></html>
         """
@@ -1058,12 +1058,12 @@ $contents
 
         conn.commit()
         conn.close()
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_add_device_stage_1(self, name="John Doe"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script type="application/javascript">
 function chgAction(mainForm){
 if( document.mainForm.device_type.selectedIndex==13 )
@@ -1103,12 +1103,12 @@ In order to automatically track attendace, we can detect when devices enter this
 </body></html>
         """
         output = output.replace("$name", name)
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_add_device_stage_2(self, name="John Doe", device_type="iPhone"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual_internal?func=info&name=$name">< Return</a></div><br>
 <div class="message_small">
 
@@ -1124,12 +1124,12 @@ How would you classify this device? (phone, tablet, laptop, watch, etc.) <input 
         """
         output = output.replace("$name", name)
         output = output.replace("$device_type", device_type)
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_add_device_stage_3(self, name="John Doe", device_type="iPhone", description="", force_manual="0"):
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
 <script>
 window.setInterval("reloadIFrame();", 1000);
 function reloadIFrame() {
@@ -1232,7 +1232,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         output = output.replace("$device_type", device_type)
         output = output.replace("$description", description)
         output = output.replace("$hostname", advised_ip)
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_add_device_stage_4(self, name="John Doe", mac="", description="unknown"):
@@ -1266,7 +1266,7 @@ $message
         conn.commit()
         conn.close()
 
-        return(output.replace("$name", name))
+        return(output.replace("$name", name).replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def manual_wait_for_mac(self):
@@ -1313,7 +1313,7 @@ Your device is almost ready to be tracked.
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>6328 Sign In/Out</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
 <div class="message">$message</div>
 </body></html>
         """
@@ -1340,14 +1340,14 @@ Your device is almost ready to be tracked.
 
         conn.commit()
         conn.close()
-        return(output)
+        return(output.replace("$title_signin", config.signin_title))
 
     @cherrypy.expose
     def peoplelist(self, sort_first='0'):
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>People - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
+<html><head><title>People - $title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
 <a href="/">< Return</a><br><br>
 
 <form method="post" action="/peoplelist_add">
@@ -1405,7 +1405,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         output = output.replace("$peoplelistHtml", peoplelist_html)
 
         conn.close()
-        return(output)
+        return(output.replace("$title", config.admin_title))
 
     @cherrypy.expose
     def peoplelist_add(self, name="John Doe"):
@@ -1424,7 +1424,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>$name - 6328 Attendance</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
+<html><head><title>$name - $title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css"></head><body>
 <a href="/peoplelist">< Return</a><br><br>
 
 <h2>$name</h2>
@@ -1505,7 +1505,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         output = output.replace("$categoriesHtml", categories_html)
 
         conn.close()
-        return(output)
+        return(output.replace("$title", config.admin_title))
 
     @cherrypy.expose
     def person_rename(self, old_name="John Doe", new_name="John Doe"):
@@ -1633,7 +1633,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
 
 def error_page(status, message, traceback, version):
     output = """
-<html><head><title>Error - 6328 Attendance</title></head><body>
+<html><head><title>Error - $title</title></head><body>
 <h1>This is embarrassing...</h1>
 <h3>Looks like something isn't working right. Please try again later.<br><br><a href="javascript:window.history.back();">Click here to go back</a></h3>
 <div style="font-family: monospace;">
@@ -1646,7 +1646,7 @@ $traceback
     output = output.replace("$traceback", traceback.replace("\n", "<br>"))
     output = output.replace("$status", status)
     output = output.replace("$message", message)
-    return(output)
+    return(output.replace("$title", config.admin_title))
 
 clients = []
 def send_complete(request_id):

@@ -4,6 +4,8 @@
 # General
 repo = "/home/attendance/Attendance"
 data = "/home/attendance/Attendance_data"
+admin_title = "6328 Attendance"
+signin_title = "6328 Sign In/Out"
 
 # Monitor
 mon_write_wait = 10 # secs, how long to wait between db writes when monitoring
