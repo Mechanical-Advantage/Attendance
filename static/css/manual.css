@@ -1,10 +1,10 @@
 @font-face {
-	font-family: "Robotech GP";
+	font-family: "Title";
 	src: url("/static/fonts/title.ttf");
 }
 
 html {
-	font-family: "Robotech GP";
+	font-family: "Title";
 }
 
 .slideshow {
