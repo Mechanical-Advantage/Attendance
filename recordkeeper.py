@@ -170,7 +170,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
         #Adjust end time
         if not results[i]["manual_signout"]:
             if results[i]["manual_signin"]:
-                results[i]["timeout"] += time_config["manual_timeout"] * 3600
+                results[i]["timeout"] += time_config["manual_extension"] * 3600
             else:
                 results[i]["timeout"] += time_config["auto_extension"] * 60
 

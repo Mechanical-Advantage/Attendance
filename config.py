@@ -30,6 +30,7 @@ recordkeeper_times = {
     "auto_extension": 10, # minutes, amount of time automatic visits are extended past last detection
     "reset_threshold": 75, # minutes, amount of time since last detection before new visit created
     "manual_grace": 15, # minutes, amount of time after manual signout where automatic signins are blocked
+	"manual_extension": 3, # hours, amount of time manual signins are extended (length if no sign out)
     "manual_timeout": 8 # hours, amount of time after last detection when signed out if manual sign in
 }
 

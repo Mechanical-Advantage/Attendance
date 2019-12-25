@@ -917,19 +917,7 @@ updateSlideshow()
 
         # Get list of all names
         cur.execute("SELECT DISTINCT name FROM people ORDER BY name")
-        names_unfiltered = order_names(cur.fetchall())
-
-        # Generate list of names to display
-        names = []
-        for i in range(0, len(names_unfiltered)):
-            if func == "signin":
-                display = True
-            elif func == "signout":
-                display = names_unfiltered[i] in recordkeeper.get_livecache()
-            else:
-                display = True
-            if display:
-                names.append(names_unfiltered[i])
+        names = order_names(cur.fetchall())
 
         if letter == 0:
             output = output.replace(
