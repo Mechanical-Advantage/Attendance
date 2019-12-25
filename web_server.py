@@ -294,6 +294,7 @@ $check_html
         output = """
 <html><head>
 <link rel="stylesheet" type="text/css" href="/static/css/admin.css">
+<link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <style>
 $versioncss
 </style>
@@ -309,13 +310,8 @@ left: 50%;
 transform: translate(-50%, 0);
 }
 
-@font-face {
-	font-family: "Robotech GP";
-	src: url("/static/fonts/robotechgp.ttf");
-}
-
 td {
-font-family: "Robotech GP";
+font-family: "Title";
 font-size: 20px;
 }
             """)
@@ -853,7 +849,7 @@ chart.draw(dataTable, options);
     @cherrypy.expose
     def manual(self):
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <script>
 window.setInterval("updateDisplayType();", 5000);
 window.setInterval("reloadIFrame();", 60000);
@@ -903,7 +899,7 @@ updateSlideshow()
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"></head><body>
 
 <div class="title">$prompt</div>
 <div style="position: absolute; left: 50%; transform: translate(-50%, 0); top: 50px; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div>
@@ -981,7 +977,7 @@ updateSlideshow()
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"></head><body>
 $contents
 </body></html>
         """
@@ -1063,7 +1059,7 @@ $contents
     @cherrypy.expose
     def manual_add_device_stage_1(self, name="John Doe"):
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <script type="application/javascript">
 function chgAction(mainForm){
 if( document.mainForm.device_type.selectedIndex==13 )
@@ -1108,7 +1104,7 @@ In order to automatically track attendace, we can detect when devices enter this
     @cherrypy.expose
     def manual_add_device_stage_2(self, name="John Doe", device_type="iPhone"):
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"></head><body>
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual_internal?func=info&name=$name">< Return</a></div><br>
 <div class="message_small">
 
@@ -1129,7 +1125,7 @@ How would you classify this device? (phone, tablet, laptop, watch, etc.) <input 
     @cherrypy.expose
     def manual_add_device_stage_3(self, name="John Doe", device_type="iPhone", description="", force_manual="0"):
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <script>
 window.setInterval("reloadIFrame();", 1000);
 function reloadIFrame() {
@@ -1239,7 +1235,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css">
+<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <meta http-equiv="refresh" content="5; url=/manual_internal?func=info&name=$name" />
 </head><body>
 <div class="message">
@@ -1274,7 +1270,7 @@ $message
         cur = conn.cursor()
 
         output = """
-<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><base target="_parent"></head><body>
+<html><head><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"><base target="_parent"></head><body>
 <div class="message">
 $content
 </div>
@@ -1313,7 +1309,7 @@ Your device is almost ready to be tracked.
         conn = sql.connect(database)
         cur = conn.cursor()
         output = """
-<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"></head><body>
+<html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"></head><body>
 <div class="message">$message</div>
 </body></html>
         """
