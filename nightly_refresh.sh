@@ -12,7 +12,7 @@ log () {
 
 #Generate history cache
 log 'Creating history cache'
-python3 "$REPO_PATH/cache_history.py"
+python3.8 "$REPO_PATH/cache_history.py"
 
 #Cycle server log
 log 'Cycling server log'

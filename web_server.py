@@ -147,6 +147,13 @@ iframe {
 <button type="submit">Get Records</button>
 </form>
 
+<form method="get" action="/load_records">
+<input type="hidden" name="start_date" value="$today_value">
+<input type="hidden" name="end_date" value="$today_value">
+<input type="hidden" name="source" value="live"></input>
+<button type="submit">Get Today's Records</button>
+</form>
+
 <a href="/advanced">Advanced Get Records</a><br><br>
 <a href="/manual">Manual Sign In/Out</a><br><br>
 <a href="/peoplelist">Manage People</a>
@@ -184,6 +191,7 @@ function reloadLive() {
         else:
             end_value = time.strftime("%Y-%m-%d")
         output = output.replace("$end_value", end_value)
+        output = output.replace("$today_value", time.strftime("%Y-%m-%d"))
 
         conn.close()
         return(output.replace("$title", config.admin_title))
