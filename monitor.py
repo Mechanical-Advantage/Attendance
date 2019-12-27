@@ -75,7 +75,6 @@ def stop_monitor(code):
 		print("Failed to stop monitor " + code + " on '" + interfaces[code]["monitor"])
 
 def stop_all():
-	print("\nStarting clean shutdown. Please wait for completition.")
 	for code in interfaces.keys():
 		stop_monitor(code)
 
@@ -84,9 +83,9 @@ def monitor(code):
 	global interfaces
 	global write_queue
 	global restart_signal
-	global monitor_thread_count
+	global thread_count
 	last_packet = time.time()
-	monitor_thread_count += 1
+	thread_count += 1
 
 	def process(packet):
 		nonlocal last_packet
@@ -109,18 +108,20 @@ def monitor(code):
 		except:
 			pass
 		if restart_signal: # stop b/c script restarting
-			monitor_thread_count -= 1
+			thread_count -= 1
 			return
 		if time.time() - last_packet > config.mon_restart_timeout: # problem w/ interface, restart script
 			print("Interface", code, "not working, triggering restart")
 			restart_signal = True
-			monitor_thread_count -= 1
+			thread_count -= 1
 			return
 		
 #Run db write thread
 write_queue = []
 def writer():
+	global thread_count
 	global write_queue
+	thread_count += 1
 	conn = sql.connect(config.data + "/logs.db")
 	cur = conn.cursor()
 
@@ -132,7 +133,7 @@ def writer():
 	print("Loaded id lookup table, ready to write")
 
 	#Write data periodically
-	while True:
+	while not restart_signal:
 		time.sleep(config.mon_write_wait)
 		write_queue_internal = write_queue
 		write_queue = []
@@ -147,11 +148,18 @@ def writer():
 			cur.execute("INSERT INTO logs(timestamp,action,id) VALUES (?,0,?)", (record[0],lookup_id))
 		conn.commit()
 		print(str(round(time.time())) + " : WRITER : Finished writing " + str(len(write_queue_internal)) + " records")
+
+	#Script restarting
+	conn.close()
+	print("Database connection closed")
+	thread_count -= 1
+
 writer = threading.Thread(target=writer, daemon=True)
 writer.start()
 
 #Overall control
 def shutdown(sig, frame):
+	print("\nStarting clean shutdown. Please wait for completition.")
 	stop_all()
 	sys.exit(0)
 
@@ -164,7 +172,7 @@ signal.signal(signal.SIGINT, shutdown)
 
 #Start monitors
 monitors = []
-monitor_thread_count = 0
+thread_count = 0
 run_command(["sudo", "killall", "tshark"]) # kill b/c can cause problems on restart
 for code in interfaces.keys():
 	time.sleep(2)
@@ -177,7 +185,7 @@ while True:
 	time.sleep(1)
 	if restart_signal:
 		print("Waiting for all threads to exit...")
-		while monitor_thread_count > 0:
+		while thread_count > 0:
 			time.sleep(1)
 		print("All threads exited, beginning restart")
 		time.sleep(1)
