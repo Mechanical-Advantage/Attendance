@@ -11,6 +11,7 @@ import subprocess
 import os
 
 interfaces = config.mon_interfaces
+thread_count = 0
 
 def run_command(args):
 	process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -172,7 +173,6 @@ signal.signal(signal.SIGINT, shutdown)
 
 #Start monitors
 monitors = []
-thread_count = 0
 run_command(["sudo", "killall", "tshark"]) # kill b/c can cause problems on restart
 for code in interfaces.keys():
 	time.sleep(2)
