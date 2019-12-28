@@ -1508,10 +1508,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
                     (new_name, old_name))
         cur.execute("UPDATE devices SET name=? WHERE name=?",
                     (new_name, old_name))
-        cur.execute("UPDATE live SET name=? WHERE name=?", (new_name, old_name))
-        cur.execute("UPDATE history SET name=? WHERE name=?",
-                    (new_name, old_name))
-        cur.execute("UPDATE signed_out SET name=? WHERE name=?",
+        cur.execute("UPDATE history_cache SET name=? WHERE name=?",
                     (new_name, old_name))
         cur.execute("UPDATE categories SET name=? WHERE name=?",
                     (new_name, old_name))
@@ -1519,11 +1516,20 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         if add_name == old_name:
             cur.execute("UPDATE general SET value=? WHERE key='add_name'", (new_name,))
 
-        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
-        output = output.replace("$name", new_name)
-
         conn.commit()
         conn.close()
+
+        log_conn = sql.connect(log_database)
+        log_cur = conn.cursor()
+
+        cur.execute("UPDATE lookup SET value=? WHERE value=?",
+                    (new_name, old_name))
+
+        log_conn.commit()
+        log_cur.close()
+
+        output = """<meta http-equiv="refresh" content="0; url=/person/$name" />"""
+        output = output.replace("$name", new_name)
         return(output)
 
     @cherrypy.expose
