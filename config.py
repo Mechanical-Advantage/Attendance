@@ -25,12 +25,12 @@ mon_interfaces = {
 # Analysis
 recordkeeper_times = { # in minutes
 	"auto_extension": 10, # amount of time automatic visits are extended past last detection
-    "auto_live": 30, # amount of time since last detection before removed from live
-    "auto_reset": 75, # amount of time since last detection before new visit created
-    "manual_grace": 15, # amount of time after manual signout where automatic signins are blocked
+	"auto_live": 30, # amount of time since last detection before removed from live
+	"auto_reset": 75, # amount of time since last detection before new visit created
+	"manual_grace": 15, # amount of time after manual signout where automatic signins are blocked
 	"manual_extension": 180, # amount of time manual visits are extended past sign in
 	"manual_live": 480, # amount of time since sign in before removed from live (except for manual sign-outs)
-    "manual_reset": 480 # amount of time since sign in where new visit created
+	"manual_reset": 480 # amount of time since sign in where new visit created
 }
 
 # Web server
