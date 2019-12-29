@@ -91,7 +91,7 @@ div.title {
 
 div.yellow_alert {
 	z-index: 1;
-	font-size: 35px;
+	font-size: 28px;
 	position: absolute;
 	top: 55px;
 	left: 50%;
@@ -103,8 +103,8 @@ div.yellow_box {
 	position: absolute;
 	top: 60px;
 	left: 50%;
-	height: 35px;
-	width: 230px;
+	height: 28px;
+	width: 315px;
 	transform: translateX(-50%);
 	background-color: yellow;
 }
