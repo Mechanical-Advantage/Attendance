@@ -16,7 +16,7 @@ mon_interfaces = {
 	},
 	# "BELKIN": {
 	# 	"standard": "wlx00173f847fbf"
-	# }
+	# },
 	"PROXIM": {
 		"standard": "wlx0020a6f69098"
 	}
