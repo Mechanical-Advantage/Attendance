@@ -13,11 +13,16 @@ import os
 interfaces = config.mon_interfaces
 thread_count = 0
 
-def run_command(args):
-	process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	result = process.stdout.decode("utf-8")
-	result += process.stderr.decode("utf-8")
-	return(result)
+def run_command(args, output=True):
+	if output:
+		process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		stdout, stderr = process.communicate()
+		result = stdout.decode("utf-8")
+		result += stderr.decode("utf-8")
+		return(result)
+	else:
+		process = subprocess.call(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		return
 
 def get_interfaces():
 	result = run_command(["iwconfig"])
@@ -53,7 +58,7 @@ def start_monitor(code):
 			break
 		else:
 			mon_number += 1
-			run_command(["sudo", "iw", "dev", result, "del"])
+			run_command(["sudo", "iw", "dev", result, "del"], output=False)
 	if mon_number >= 99:
 		print("Failed to start monitor " + code + " - could not create virutal interface")
 		return(False)
@@ -67,30 +72,22 @@ def start_monitor(code):
 	print("Started monitor " + code + " on '" + interfaces[code]["monitor"] + "'")
 	return(True)
 		
-def stop_monitor(code):
-	global interfaces
-	output = output = run_command(["sudo", "iw", "dev", interfaces[code]["monitor"], "del"])
+def stop_monitor(code, interface):
+	output = output = run_command(["sudo", "iw", "dev", interface, "del"])
 	if output == "":
 		print("Stopped monitor " + code)
 	else:
-		print("Failed to stop monitor " + code + " on '" + interfaces[code]["monitor"])
+		print("Failed to stop monitor " + code + " on '" + interface + "'")
 
 def stop_all():
-	for code in interfaces.keys():
-		stop_monitor(code)
+	for code, value in interfaces.items():
+		stop_monitor(code, value["monitor"])
 
-restart_signal = False
 def monitor(code):
 	global interfaces
 	global write_queue
-	global restart_signal
-	global thread_count
-	last_packet = time.time()
-	thread_count += 1
 
 	def process(packet):
-		nonlocal last_packet
-		last_packet = time.time()
 		try:
 			record_time = round(time.time())
 			record_value = packet.wlan.sa_resolved
@@ -105,24 +102,14 @@ def monitor(code):
 	capture = pyshark.LiveCapture(interface=interfaces[code]["monitor"])
 	while True:
 		try:
-			capture.apply_on_packets(process, timeout=config.mon_restart_checkperiod)
+			capture.apply_on_packets(process)
 		except:
 			pass
-		if restart_signal: # stop b/c script restarting
-			thread_count -= 1
-			return
-		if time.time() - last_packet > config.mon_restart_timeout: # problem w/ interface, restart script
-			print("Interface", code, "not working, triggering restart")
-			restart_signal = True
-			thread_count -= 1
-			return
 		
 #Run db write thread
 write_queue = []
 def writer():
-	global thread_count
 	global write_queue
-	thread_count += 1
 	conn = sql.connect(config.data + "/logs.db")
 	cur = conn.cursor()
 
@@ -134,7 +121,7 @@ def writer():
 	print("Loaded id lookup table, ready to write")
 
 	#Write data periodically
-	while not restart_signal:
+	while True:
 		time.sleep(config.mon_write_wait)
 		write_queue_internal = write_queue
 		write_queue = []
@@ -150,43 +137,26 @@ def writer():
 		conn.commit()
 		print(str(round(time.time())) + " : WRITER : Finished writing " + str(len(write_queue_internal)) + " records")
 
-	#Script restarting
-	conn.close()
-	print("Database connection closed")
-	thread_count -= 1
-
 writer = threading.Thread(target=writer, daemon=True)
 writer.start()
 
-#Overall control
+#Shutdown signal
 def shutdown(sig, frame):
 	print("\nStarting clean shutdown. Please wait for completition.")
 	stop_all()
 	sys.exit(0)
 
-def restart():
-	stop_all()
-	time.sleep(1)
-	os.execl(sys.executable, sys.executable, * sys.argv)
-
 signal.signal(signal.SIGINT, shutdown)
+
+#Kill tshark
+run_command(["sudo", "killall", "tshark"], output=False)
 
 #Start monitors
 monitors = []
-run_command(["sudo", "killall", "tshark"]) # kill b/c can cause problems on restart
 for code in interfaces.keys():
 	time.sleep(2)
 	if start_monitor(code):
 		monitors.append(threading.Thread(target=monitor, args=(code,), daemon=True))
 		monitors[len(monitors)-1].start()
 
-#Wait for restart signal
-while True:
-	time.sleep(1)
-	if restart_signal:
-		print("Waiting for all threads to exit...")
-		while thread_count > 0:
-			time.sleep(1)
-		print("All threads exited, beginning restart")
-		time.sleep(1)
-		restart()
+signal.pause()

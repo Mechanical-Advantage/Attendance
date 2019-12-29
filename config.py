@@ -9,8 +9,6 @@ signin_title = "6328 Sign In/Out"
 
 # Monitor
 mon_write_wait = 10 # secs, how long to wait between db writes when monitoring
-mon_restart_timeout = 180 # secs, time from last packet at which monitoring interface restarted
-mon_restart_checkperiod = 15 # secs, frequency at which to check for restart timeout
 mon_nolog = ["00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"] # which macs to skip logging (router, wifi adapters, etc.)
 mon_interfaces = {
 	"INTERN": {
