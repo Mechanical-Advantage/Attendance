@@ -22,9 +22,10 @@ echo '' > 'serverlog.log'
 
 if [ "$MAKE_BACKUP" = true ]; then
     #Create zip
-    cd ../..
+    cd ..
     log 'Creating zip file'
-    zip -r backup.zip "$DATA_PATH" > /dev/null
+    zip -r ../backup.zip ./* > /dev/null
+    cd ..
 
     #Get size of data and calculate target size
     du_output=`du -sb ./backup.zip`
@@ -58,7 +59,8 @@ if [ "$MAKE_BACKUP" = true ]; then
     log 'Copying data'
     currentTime=`date '+%s - %m-%d-%Y'`
     cp -r --no-preserve=mode ./backup.zip "$BACKUP_PATH"/"$currentTime".zip
-    du -sh "$BACKUP_PATH"
+    log 'Running disk sync'
+    sync
 
     log 'Deleting zip file'
     rm ./backup.zip
@@ -69,5 +71,5 @@ log 'Finished refresh'
 #Reboot once a week
 if [ `date +%u` == 7 ]; then
     log 'Rebooting'
-    reboot
+    sudo reboot
 fi
