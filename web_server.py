@@ -322,6 +322,10 @@ td {
 font-family: "Title";
 font-size: 20px;
 }
+
+td.yellow {
+background-color: yellow;
+}
             """)
         else:
             output = output.replace("$versioncss", """
@@ -333,7 +337,8 @@ left: 0px;
             """)
 
         # Get list of live names
-        rows = order_names([(x,) for x in recordkeeper.get_livecache()])
+        live = recordkeeper.get_livecache()
+        rows = order_names([(x["name"],) for x in live])
         if len(rows) == 0:
             rows.append("No one")
 
@@ -345,7 +350,16 @@ left: 0px;
             if i % 5 == 0:
                 if i != 0:
                     temp_table_html = temp_table_html + "</tr><tr>"
-            temp_table_html = temp_table_html + "<td class=\"names\">" + row + "</td>"
+
+            #Check if manual sign in
+            x = 0
+            while live[x]["name"] != row:
+                x += 1
+            if live[x]["manual_signin"]:
+                yellow_text = " yellow"
+            else:
+                yellow_text = ""
+            temp_table_html = temp_table_html + "<td class=\"names" + yellow_text + "\">" + row + "</td>"
         temp_table_html = temp_table_html + "</tr>"
         output = output.replace("$tableHtml", temp_table_html)
 
@@ -873,7 +887,9 @@ function reloadIFrame() {
 
 <div class="aboveSlideshow">
 <div class="title">People Here Now:</div>
-<div style="position: absolute; top: 60px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live/signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
+<div class="yellow_alert"">(Must sign out)</div>
+<div class="yellow_box"></div>
+<div style="position: absolute; top: 95px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live/signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
 <div class="alert"><a href="/manual_select/info" class="show">Should I sign in?</a></div>
 <div class="signin">Sign In</div>
 <div class="signout">Sign Out</div>
@@ -1673,20 +1689,20 @@ def run_status_server():
     cherrypy.log("Stopping web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
     
 def slack_poster():
-	while not recordkeeper.get_liveready():
-		time.sleep(1)
-	cherrypy.log("Live data ready, starting slack poster")
-	old_live = recordkeeper.get_livecache()
-	while True:
-		time.sleep(1)
-		new_live = recordkeeper.get_livecache()
-		if new_live != old_live:
-			for old_name in old_live:
-				if old_name not in new_live:
-					slack_post(old_name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
-			for new_name in new_live:
-				if new_name not in old_live:
-					slack_post(new_name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+    while not recordkeeper.get_liveready():
+        time.sleep(1)
+    cherrypy.log("Live data ready, starting slack poster")
+    while True:
+        old_live = [x["name"] for x in recordkeeper.get_livecache()]
+        time.sleep(1)
+        new_live = [x["name"] for x in recordkeeper.get_livecache()]
+        if new_live != old_live:
+            for old_name in old_live:
+                if old_name not in new_live:
+                    slack_post(old_name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+            for new_name in new_live:
+                if new_name not in old_live:
+                    slack_post(new_name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
 
 if __name__ == "__main__":
     recordkeeper.start_live_server()

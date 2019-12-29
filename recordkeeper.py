@@ -40,9 +40,12 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
         main_conn.close()
         return([{"name": x[0], "timein": x[1], "timeout": x[2]} for x in records])
     
+    #Determine start and end times
     results = []
-    scan_start = start_time - (time_config["manual_timeout"] * 3600)
-    scan_end = end_time + (time_config["reset_threshold"] * 60)
+    max_reset = max(time_config["auto_reset"], time_config["manual_reset"])
+    scan_start = start_time - (max_reset * 60)
+    max_future = max((time_config["auto_reset"] - time_config["auto_extension"]), (time_config["manual_reset"] - time_config["manual_extension"]))
+    scan_end = end_time + (max_future * 60)
     
     def get_id(value):
         id = log_cur.execute("SELECT id FROM lookup WHERE value=?", (value,)).fetchall()
@@ -145,9 +148,9 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
         extend = False
         if last_found:
             if results[last_i]["manual_signin"]:
-                cutoff = time_config["manual_timeout"] * 3600
+                cutoff = time_config["manual_reset"] * 60
             else:
-                cutoff = time_config["reset_threshold"] * 60
+                cutoff = time_config["auto_reset"] * 60
             if record[0] - results[last_i]["timeout"] <= cutoff:
                 extend = True
 
@@ -170,7 +173,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
         #Adjust end time
         if not results[i]["manual_signout"]:
             if results[i]["manual_signin"]:
-                results[i]["timeout"] += time_config["manual_extension"] * 3600
+                results[i]["timeout"] += time_config["manual_extension"] * 60
             else:
                 results[i]["timeout"] += time_config["auto_extension"] * 60
 
@@ -199,12 +202,26 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
     return(results)
 
 def get_live(now):
-    visits = get_range(now - ((time_config["live_threshold"] - time_config["auto_extension"]) * 60), now)
+    max_past = max((time_config["auto_live"] - time_config["auto_extension"]), (time_config["manual_live"] - time_config["manual_extension"]))
+    visits = get_range(now - (max_past * 60), now)
     results = []
     for visit in visits:
-        if not visit["name"] in results and ((not visit["manual_signout"]) or visit["timeout"] == -2):
-            results.append(visit["name"])
-    results.sort()
+        if not visit["name"] in results:
+            if visit["timeout"] != -2 and visit["manual_signout"]: # manual sign-outs immediately removed from live
+                continue
+            if visit["manual_signin"]:
+                cutoff = time_config["manual_live"] - time_config["manual_extension"]
+            else:
+                cutoff = time_config["auto_live"] - time_config["auto_extension"]
+            if visit["timeout"] == -2:
+                compare_time = time.time()
+            else:
+                compare_time = visit["timeout"]
+            if now - compare_time <= cutoff * 60:
+                results.append(visit)
+    
+    results = sorted(results, key=lambda x: x["name"])
+    
     return(results)
 
 live = []
