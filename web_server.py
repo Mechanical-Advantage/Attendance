@@ -352,13 +352,16 @@ left: 0px;
                     temp_table_html = temp_table_html + "</tr><tr>"
 
             #Check if manual sign in
-            x = 0
-            while live[x]["name"] != row:
-                x += 1
-            if live[x]["manual_signin"]:
-                yellow_text = " yellow"
-            else:
+            if row == "No one":
                 yellow_text = ""
+            else:
+                x = 0
+                while live[x]["name"] != row:
+                    x += 1
+                if live[x]["manual_signin"]:
+                    yellow_text = " yellow"
+                else:
+                    yellow_text = ""
             temp_table_html = temp_table_html + "<td class=\"names" + yellow_text + "\">" + row + "</td>"
         temp_table_html = temp_table_html + "</tr>"
         output = output.replace("$tableHtml", temp_table_html)
