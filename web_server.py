@@ -35,7 +35,8 @@ else:
 
 	
 def slack_post(message):
-	requests.post(slack_url, json={"text": message})
+    requests.post(slack_url, json={"text": message})
+    cherrypy.log("Sent slack message \"" + message + "\"")
 
 def record_request_thread(request_id):
     request = record_requests[request_id]
@@ -1539,9 +1540,9 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
 
         log_conn = sql.connect(log_database)
-        log_cur = conn.cursor()
+        log_cur = log_conn.cursor()
 
-        cur.execute("UPDATE lookup SET value=? WHERE value=?",
+        log_cur.execute("UPDATE lookup SET value=? WHERE value=?",
                     (new_name, old_name))
 
         log_conn.commit()
@@ -1692,6 +1693,7 @@ def run_status_server():
     cherrypy.log("Stopping web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
     
 def slack_poster():
+    cherrypy.log("Starting slack poster, waiting for data")
     while not recordkeeper.get_liveready():
         time.sleep(1)
     cherrypy.log("Live data ready, starting slack poster")
@@ -1714,7 +1716,7 @@ if __name__ == "__main__":
     if config.enable_slack:
     	slack_thread = threading.Thread(target=slack_poster, daemon=True)
     	slack_thread.start()
-    cherrypy.config.update({'server.socket_port': config.web_port, 'server.host': config.web_host,
+    cherrypy.config.update({'server.socket_port': config.web_port, 'server.socket_host': config.web_host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
                         "tools.staticdir.on": True, "tools.staticdir.dir": config.repo + "/static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": config.repo + "/static/img/favicon.ico"}})

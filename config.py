@@ -9,17 +9,17 @@ signin_title = "6328 Sign In/Out"
 
 # Monitor
 mon_write_wait = 10 # secs, how long to wait between db writes when monitoring
-mon_nolog = ["00:17:3f:84:7f:bf", "00:20:a6:f6:90:98"] # which macs to skip logging (router, wifi adapters, etc.)
+mon_nolog = ["00:17:3f:84:7f:bf", "78:92:9c:fd:17:d1"] # which macs to skip logging (router, wifi adapters, etc.)
 mon_interfaces = {
 	"INTERN": {
 		"standard": "wlp2s0"
 	},
-	# "BELKIN": {
-	# 	"standard": "wlx00173f847fbf"
-	# },
-	"PROXIM": {
-		"standard": "wlx0020a6f69098"
+	"BELKIN": {
+		"standard": "wlx00173f847fbf"
 	}
+	# "PROXIM": {
+	# 	"standard": "wlx0020a6f69098"
+	# }
 }
 
 # Analysis
@@ -38,4 +38,4 @@ web_host = "0.0.0.0"
 web_forced_advised = None # not used for hosting
 web_port = 8000
 web_socket_port = 8001
-enable_slack = False
+enable_slack = True

@@ -235,6 +235,7 @@ def get_liveready():
 def start_live_server():
     def live_server():
         global live
+        global live_ready
         while True:
             live = get_live(time.time())
             live_ready = True
