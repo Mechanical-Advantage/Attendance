@@ -348,7 +348,7 @@ left: 0px;
         i = -1
         for row in rows:
             i += 1
-            if i % 5 == 0:
+            if i % 8 == 0:
                 if i != 0:
                     temp_table_html = temp_table_html + "</tr><tr>"
 
