@@ -30,7 +30,7 @@ recordkeeper_times = { # in minutes
 	"manual_grace": 15, # amount of time after manual signout where automatic signins are blocked
 	"manual_extension": 180, # amount of time manual visits are extended past sign in
 	"manual_live": 480, # amount of time since sign in before removed from live (except for manual sign-outs)
-	"manual_reset": 480 # amount of time since sign in where new visit created
+	"manual_reset": 960 # amount of time since sign in where new visit created
 }
 
 # Web server
