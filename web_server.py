@@ -1497,7 +1497,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
             devices_html = devices_html + "<i>" + description + "</i>"
             devices_html = devices_html + " - <a href=\"/person_toggle_reliable/" + \
                 str(devices[i][0]) + "\">" + toggle_text + "</a>"
-            devices_html = devices_html + " - <a href=\"/person_removeDevice/" + \
+            devices_html = devices_html + " - <a href=\"/person_remove_device/" + \
                 str(devices[i][0]) + "\">Remove device</a><br>"
         output = output.replace("$devicesHtml", devices_html)
 
