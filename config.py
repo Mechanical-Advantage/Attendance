@@ -9,7 +9,7 @@ signin_title = "6328 Sign In/Out"
 
 # Monitor
 mon_write_wait = 10 # secs, how long to wait between db writes when monitoring
-mon_nolog = ["00:17:3f:84:7f:bf", "78:92:9c:fd:17:d1"] # which macs to skip logging (router, wifi adapters, etc.)
+mon_nolog = ["00:17:3f:84:7f:bf", "78:92:9c:fd:17:d1", "00:20:a6:f6:90:98", "94:10:3e:8c:35:4b"] # which macs to skip logging (router, wifi adapters, etc.)
 mon_interfaces = {
 	"INTERN": {
 		"standard": "wlp2s0"
