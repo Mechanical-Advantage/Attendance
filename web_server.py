@@ -915,7 +915,9 @@ updateSlideshow()
 </body></html>
         """
 
-        imagelist = os.listdir(config.repo + "/static/backgrounds")
+        imagelist = []
+        for root, dir, files in os.walk(config.repo + "/static/backgrounds"):
+            imagelist += [root.split("/static/backgrounds/")[1] + "/" + x for x in files]
         shuffle(imagelist)
         imagelist = str(imagelist).replace("'", '"')
         output = output.replace("$imagelist", imagelist)
