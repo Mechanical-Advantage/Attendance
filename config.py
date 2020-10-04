@@ -1,5 +1,5 @@
 # CONFIGURATION FOR ALL PYTHON SCRIPTS
-# Note that configuration for "nightly_refresh.sh" and "start_all.sh" are part of their respective files
+# Note that configurations for "nightly_refresh.sh" and "start_all.sh" are part of their respective files
 
 # General
 repo = "/home/attendance/Attendance"
