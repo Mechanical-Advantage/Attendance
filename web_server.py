@@ -20,28 +20,32 @@ language_manager = inflect.engine()
 record_requests = []
 request_threads = []
 if config.enable_slack:
-	slack_url = open(config.data + "/slack_url.txt", "r").read()
+    slack_url = open(config.data + "/slack_url.txt", "r").read()
 
 # Get ip address
 if config.web_forced_advised != None:
     advised_ip = config.web_forced_advised
 else:
-    ifconfig_result = subprocess.run(["ifconfig"], stdout=subprocess.PIPE).stdout.decode('utf-8')
-    ifconfig_result = [x.split("inet ")[1].split(" ")[0] for x in ifconfig_result.split("\n") if "inet " in x]
+    ifconfig_result = subprocess.run(
+        ["ifconfig"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+    ifconfig_result = [x.split("inet ")[1].split(" ")[0]
+                       for x in ifconfig_result.split("\n") if "inet " in x]
     ifconfig_result = [x for x in ifconfig_result if x != "127.0.0.1"]
     if len(ifconfig_result) < 1:
         ifconfig_result.append("127.0.0.1")
     advised_ip = ifconfig_result[0]
 
-	
+
 def slack_post(message):
     requests.post(slack_url, json={"text": message})
     cherrypy.log("Sent slack message \"" + message + "\"")
 
+
 def record_request_thread(request_id):
     request = record_requests[request_id]
     try:
-        data = recordkeeper.get_range(request["start_date"], request["end_date"], filter=request["filter"])
+        data = recordkeeper.get_range(
+            request["start_date"], request["end_date"], filter=request["filter"])
     except:
         x = 0
     else:
@@ -49,8 +53,10 @@ def record_request_thread(request_id):
     record_requests[request_id]["complete"] = True
     send_complete(request_id)
 
+
 def current_time():
     return(int(round(time.time())))
+
 
 def format_duration(duration, show_seconds):
     temp_duration = duration
@@ -352,7 +358,7 @@ left: 0px;
                 if i != 0:
                     temp_table_html = temp_table_html + "</tr><tr>"
 
-            #Check if manual sign in
+            # Check if manual sign in
             if row == "No one":
                 yellow_text = ""
             else:
@@ -363,13 +369,14 @@ left: 0px;
                     yellow_text = " yellow"
                 else:
                     yellow_text = ""
-            temp_table_html = temp_table_html + "<td class=\"names" + yellow_text + "\">" + row + "</td>"
+            temp_table_html = temp_table_html + "<td class=\"names" + \
+                yellow_text + "\">" + row + "</td>"
         temp_table_html = temp_table_html + "</tr>"
         output = output.replace("$tableHtml", temp_table_html)
 
         conn.close()
         return(output)
-    
+
     @cherrypy.expose
     def load_records(self, start_date="", end_date="", filter="*", source="cache"):
         conn = sql.connect(database)
@@ -432,24 +439,26 @@ $error
 <meta http-equiv="refresh" content="0; url=/show_records?request_id=$requestid" />
 </head><body></body></html>
         """
-        
+
         def get_error(error):
             conn.close()
             return(error_output.replace("$error", error).replace("$title", config.admin_title))
-        
+
         # Update session data
         cherrypy.session["lastStartDate"] = start_date
         cherrypy.session["lastEndDate"] = end_date
-        
+
         # Create unix timestamp from input
         try:
-            start_date = time.mktime(datetime.datetime.strptime(start_date, "%Y-%m-%d").timetuple()) - (5*60*60)
-            end_date = time.mktime(datetime.datetime.strptime(end_date, "%Y-%m-%d").timetuple()) + (19*60*60)
+            start_date = time.mktime(datetime.datetime.strptime(
+                start_date, "%Y-%m-%d").timetuple()) - (5*60*60)
+            end_date = time.mktime(datetime.datetime.strptime(
+                end_date, "%Y-%m-%d").timetuple()) + (19*60*60)
         except:
             return(get_error("Please enter a valid start and end date."))
         start_date = start_date + time.timezone
         end_date = end_date + time.timezone
-        
+
         # Check that range is valid
         if end_date < start_date:
             conn.close()
@@ -461,18 +470,19 @@ $error
             names = order_names(cur.fetchall())
         else:
             names = []
-            
+
             # Get categories
             cur.execute("SELECT * FROM possible_categories")
             categories = cur.fetchall()
             for i in range(0, len(categories)):
                 categories[i] = categories[i][0]
-        
+
             # Iterate through input (if category, add names from category. if name, add to list)
             input_list = filter.split(",")
             for i in range(0, len(input_list)):
                 if input_list[i] in categories:
-                    cur.execute("SELECT name FROM categories WHERE category=?", (input_list[i],))
+                    cur.execute(
+                        "SELECT name FROM categories WHERE category=?", (input_list[i],))
                     names_in_cat = cur.fetchall()
                     for f in range(0, len(names_in_cat)):
                         if names_in_cat[f][0] not in names:
@@ -480,19 +490,22 @@ $error
                 else:
                     if input_list[i] not in names:
                         names.append(input_list[i])
-        
-        #Create request data
-        request = {"start_date": start_date, "end_date": end_date, "filter": names, "output": [], "complete": False}
+
+        # Create request data
+        request = {"start_date": start_date, "end_date": end_date,
+                   "filter": names, "output": [], "complete": False}
         record_requests.append(request)
         request_id = len(record_requests) - 1
-        
-        #Start thread or get data
+
+        # Start thread or get data
         if source == "live":
-            request_threads.append(threading.Thread(target=record_request_thread, args=(request_id,), daemon=True))
+            request_threads.append(threading.Thread(
+                target=record_request_thread, args=(request_id,), daemon=True))
             request_threads[len(request_threads) - 1].start()
             output = output.replace("$requestid", str(request_id))
         else:
-            record_requests[request_id]["output"] = recordkeeper.get_range(record_requests[request_id]["start_date"], record_requests[request_id]["end_date"], filter=record_requests[request_id]["filter"], cached=True)
+            record_requests[request_id]["output"] = recordkeeper.get_range(
+                record_requests[request_id]["start_date"], record_requests[request_id]["end_date"], filter=record_requests[request_id]["filter"], cached=True)
             record_requests[request_id]["complete"] = True
             output = redirect_output.replace("$requestid", str(request_id))
         return(output.replace("$title", config.admin_title))
@@ -501,7 +514,7 @@ $error
     def show_records(self, request_id):
         conn = sql.connect(database)
         cur = conn.cursor()
-        
+
         output = """
 <html><head><title>$title</title><link rel="stylesheet" type="text/css" href="/static/css/admin.css">
 
@@ -542,7 +555,7 @@ $timelineDiv
 
 </body></html>
             """
-        
+
         pie_script = """
 <script type="text/javascript">
 google.charts.setOnLoadCallback(drawChart);
@@ -560,9 +573,9 @@ chart.draw(data, options);
 }
 </script>
             """
-        
+
         pie_div = """<br><div id="piechart" style="height: 500px; width: 100%;"></div>"""
-        
+
         cat_pie_script = """
 <script type="text/javascript">
 google.charts.setOnLoadCallback(drawChart);
@@ -580,9 +593,9 @@ chart.draw(data, options);
 }
 </script>
             """
-        
+
         cat_pie_div = """<br><div id="catpiechart" style="height: 500px; width: 100%;"></div>"""
-        
+
         histogram_script = """
 <script type="text/javascript">
 google.charts.setOnLoadCallback(drawChart);
@@ -601,9 +614,9 @@ chart.draw(data, options);
 }
 </script>
             """
-        
+
         histogram_div = """<br><div id="histogram" style="height: 500px; width: 100%;"></div>"""
-        
+
         calendar_script = """
 <script type="text/javascript">
 google.charts.setOnLoadCallback(drawChart);
@@ -622,9 +635,9 @@ chart.draw(data, options);
 }
 </script>
             """
-        
+
         calendar_div = """<br><div id="calendar" style="height: 500px; width: 100%;"></div>"""
-        
+
         timeline_script = """
 <script type="text/javascript">
 google.charts.setOnLoadCallback(drawChart);
@@ -649,14 +662,15 @@ chart.draw(dataTable, options);
 }
 </script>
             """
-        
+
         timeline_div = """<br><div id="timeline" style="height: 100%;"></div>"""
 
         # Get data from request
         request_id = int(request_id)
         if request_id not in range(len(record_requests)):
             return("""<meta http-equiv="refresh" content="0;URL='/'" />""")
-        rows = sorted(record_requests[request_id]["output"], key=lambda x: (x["name"], x["timein"]))
+        rows = sorted(record_requests[request_id]["output"], key=lambda x: (
+            x["name"], x["timein"]))
         start_date = record_requests[request_id]["start_date"]
         end_date = record_requests[request_id]["end_date"]
 
@@ -726,14 +740,16 @@ chart.draw(dataTable, options);
                 timein_formatted = "Out of range"
                 duration_start = start_date
             else:
-                timein_formatted = time.strftime(date_format, time.localtime(row["timein"]))
+                timein_formatted = time.strftime(
+                    date_format, time.localtime(row["timein"]))
                 duration_start = row["timein"]
-            
+
             if row["timeout"] < 0:
                 timeout_formatted = "Out of range"
                 duration_end = end_date
             else:
-                timeout_formatted = time.strftime(date_format, time.localtime(row["timeout"]))
+                timeout_formatted = time.strftime(
+                    date_format, time.localtime(row["timeout"]))
                 duration_end = row["timeout"]
             raw_duration = duration_end - duration_start
 
@@ -747,7 +763,8 @@ chart.draw(dataTable, options);
 
             # Format Duration
             total_duration += raw_duration
-            duration_formatted = format_duration(raw_duration, show_seconds=False)
+            duration_formatted = format_duration(
+                raw_duration, show_seconds=False)
 
             # Get class
             if rowid > 25:
@@ -823,7 +840,7 @@ chart.draw(dataTable, options);
                     duration_start = start_date
                 else:
                     duration_start = row["timein"]
-            
+
                 if row["timeout"] < 0:
                     duration_end = end_date
                 else:
@@ -855,12 +872,12 @@ chart.draw(dataTable, options);
                     duration_start = start_date
                 else:
                     duration_start = row["timein"]
-                
+
                 if row["timeout"] < 0:
                     duration_end = end_date
                 else:
                     duration_end = row["timeout"]
-                
+
                 timeline_data = timeline_data + \
                     "['" + row["name"] + "', '" + row["name"] + "', " + \
                     javascript_date(duration_start) + ", " + \
@@ -917,7 +934,8 @@ updateSlideshow()
 
         imagelist = []
         for root, dir, files in os.walk(config.repo + "/static/backgrounds"):
-            imagelist += [root.split("/static/backgrounds/")[1] + "/" + x for x in files]
+            imagelist += [root.split("/static/backgrounds/")
+                          [1] + "/" + x for x in files]
         shuffle(imagelist)
         imagelist = str(imagelist).replace("'", '"')
         output = output.replace("$imagelist", imagelist)
@@ -1047,17 +1065,21 @@ $contents
                 action = 1
             else:
                 action = 2
-            
+
             log_conn = sql.connect(log_database)
             log_cur = log_conn.cursor()
-            id = log_cur.execute("SELECT id FROM lookup WHERE value=?", (name,)).fetchall()
+            id = log_cur.execute(
+                "SELECT id FROM lookup WHERE value=?", (name,)).fetchall()
             if len(id) < 1:
-                max_id = log_cur.execute("SELECT max(id) FROM lookup").fetchall()[0][0]
+                max_id = log_cur.execute(
+                    "SELECT max(id) FROM lookup").fetchall()[0][0]
                 id = max_id + 1
-                log_cur.execute("INSERT INTO lookup(id,value) VALUES (?,?)", (id,name))
+                log_cur.execute(
+                    "INSERT INTO lookup(id,value) VALUES (?,?)", (id, name))
             else:
                 id = id[0][0]
-            log_cur.execute("INSERT INTO logs(timestamp,action,id) VALUES (?,?,?)", (now,action,id))
+            log_cur.execute(
+                "INSERT INTO logs(timestamp,action,id) VALUES (?,?,?)", (now, action, id))
             log_conn.commit()
             log_conn.close()
 
@@ -1236,8 +1258,10 @@ Next, please go to a web browser on your $description and type in the address:<b
             output = output.replace("$content", output_auto)
             conn = sql.connect(database)
             cur = conn.cursor()
-            cur.execute("UPDATE general SET value=? WHERE key='add_name'", (name,))
-            cur.execute("UPDATE general SET value=? WHERE key='add_description'", (description,))
+            cur.execute(
+                "UPDATE general SET value=? WHERE key='add_name'", (name,))
+            cur.execute(
+                "UPDATE general SET value=? WHERE key='add_description'", (description,))
             cur.execute("UPDATE general SET value=NULL WHERE key='add_mac'")
             conn.commit()
             conn.close()
@@ -1309,9 +1333,12 @@ Your device is almost ready to be tracked.
 </form>
         """
 
-        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
-        add_description = cur.execute("SELECT value FROM general WHERE key='add_description'").fetchall()[0][0]
-        add_mac = cur.execute("SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
+        add_name = cur.execute(
+            "SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        add_description = cur.execute(
+            "SELECT value FROM general WHERE key='add_description'").fetchall()[0][0]
+        add_mac = cur.execute(
+            "SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
         if add_name == None or add_mac == None:
             output = output.replace("$content", output_waiting)
         else:
@@ -1344,13 +1371,18 @@ Your device is almost ready to be tracked.
             return(arp_output)
 
         mac = get_mac()
-        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
-        add_mac = cur.execute("SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
+        add_name = cur.execute(
+            "SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        add_mac = cur.execute(
+            "SELECT value FROM general WHERE key='add_mac'").fetchall()[0][0]
         if add_name == None or mac == "failure":
-            output = output.replace("$message", "Something has gone wrong!<br><br>Please click I can't do that")
+            output = output.replace(
+                "$message", "Something has gone wrong!<br><br>Please click I can't do that")
         else:
-            cur.execute("UPDATE general SET value=? WHERE key='add_mac'", (mac,))
-            output = output.replace("$message", "Excellent! Please continue on the attendance screen.")
+            cur.execute(
+                "UPDATE general SET value=? WHERE key='add_mac'", (mac,))
+            output = output.replace(
+                "$message", "Excellent! Please continue on the attendance screen.")
 
         conn.commit()
         conn.close()
@@ -1534,9 +1566,11 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
                     (new_name, old_name))
         cur.execute("UPDATE categories SET name=? WHERE name=?",
                     (new_name, old_name))
-        add_name = cur.execute("SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
+        add_name = cur.execute(
+            "SELECT value FROM general WHERE key='add_name'").fetchall()[0][0]
         if add_name == old_name:
-            cur.execute("UPDATE general SET value=? WHERE key='add_name'", (new_name,))
+            cur.execute(
+                "UPDATE general SET value=? WHERE key='add_name'", (new_name,))
 
         conn.commit()
         conn.close()
@@ -1545,7 +1579,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         log_cur = log_conn.cursor()
 
         log_cur.execute("UPDATE lookup SET value=? WHERE value=?",
-                    (new_name, old_name))
+                        (new_name, old_name))
 
         log_conn.commit()
         log_cur.close()
@@ -1668,32 +1702,43 @@ $traceback
     output = output.replace("$message", message)
     return(output.replace("$title", config.admin_title))
 
+
 clients = []
+
+
 def send_complete(request_id):
     for client in clients:
         client.send_message(str(request_id))
-        cherrypy.log("Sent data '" + str(request_id) + "' to " + client.address[0])
+        cherrypy.log("Sent data '" + str(request_id) +
+                     "' to " + client.address[0])
+
 
 class status_server(WebSocket):
     global clients
-    
+
     def handle(self):
-        cherrypy.log("Received data '" + self.data + "' from " + self.address[0])
+        cherrypy.log("Received data '" + self.data +
+                     "' from " + self.address[0])
 
     def connected(self):
         cherrypy.log("Socket opened from " + self.address[0])
         clients.append(self)
-    
+
     def handle_close(self):
         cherrypy.log("Socket closed to " + self.address[0])
         clients.remove(self)
 
+
 def run_status_server():
-    server = WebSocketServer(config.web_host, config.web_socket_port, status_server)
-    cherrypy.log("Starting web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
+    server = WebSocketServer(
+        config.web_host, config.web_socket_port, status_server)
+    cherrypy.log("Starting web socket server on ws://" +
+                 config.web_host + ":" + str(config.web_socket_port))
     server.serve_forever()
-    cherrypy.log("Stopping web socket server on ws://" + config.web_host + ":" + str(config.web_socket_port))
-    
+    cherrypy.log("Stopping web socket server on ws://" +
+                 config.web_host + ":" + str(config.web_socket_port))
+
+
 def slack_poster():
     cherrypy.log("Starting slack poster, waiting for data")
     while not recordkeeper.get_liveready():
@@ -1706,18 +1751,21 @@ def slack_poster():
         if new_live != old_live:
             for old_name in old_live:
                 if old_name not in new_live:
-                    slack_post(old_name + " left at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                    slack_post(old_name + " left at " +
+                               time.strftime("%-I:%M %p on %a %-m/%-d"))
             for new_name in new_live:
                 if new_name not in old_live:
-                    slack_post(new_name + " arrived at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
+                    slack_post(new_name + " arrived at " +
+                               time.strftime("%-I:%M %p on %a %-m/%-d"))
+
 
 if __name__ == "__main__":
     recordkeeper.start_live_server()
     server_thread = threading.Thread(target=run_status_server, daemon=True)
     server_thread.start()
     if config.enable_slack:
-    	slack_thread = threading.Thread(target=slack_poster, daemon=True)
-    	slack_thread.start()
+        slack_thread = threading.Thread(target=slack_poster, daemon=True)
+        slack_thread.start()
     cherrypy.config.update({'server.socket_port': config.web_port, 'server.socket_host': config.web_host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
