@@ -911,7 +911,7 @@ function reloadIFrame() {
 <div class="yellow_alert"">(Must sign out manually)</div>
 <div class="yellow_box"></div>
 <div style="position: absolute; top: 85px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live/signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
-<div class="alert"><a href="/manual_select/info" class="show">Should I sign in?</a></div>
+<div class="alert"><a href="/manual_select/info" class="show">Check devices / Register new device</a></div>
 <div class="signin">Sign In</div>
 <div class="signout">Sign Out</div>
 
