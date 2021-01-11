@@ -353,7 +353,7 @@ left: 0px;
 
         # Get list of live names
         live = recordkeeper.get_livecache()
-        rows = order_names([(x["name"],) for x in live])
+        rows = order_names([(x["name"],) for x in live if x["here"]])
         if len(rows) == 0:
             rows.append("No one")
 
@@ -1748,19 +1748,33 @@ def slack_poster():
     while not recordkeeper.get_liveready():
         time.sleep(1)
     cherrypy.log("Live data ready, starting slack poster")
+    old_live = recordkeeper.get_livecache()
     while True:
-        old_live = [x["name"] for x in recordkeeper.get_livecache()]
         time.sleep(1)
-        new_live = [x["name"] for x in recordkeeper.get_livecache()]
+        new_live = recordkeeper.get_livecache()
         if new_live != old_live:
-            for old_name in old_live:
-                if old_name not in new_live:
-                    slack_post(old_name + " left at " +
-                               time.strftime("%-I:%M %p on %a %-m/%-d"))
-            for new_name in new_live:
-                if new_name not in old_live:
-                    slack_post(new_name + " arrived at " +
-                               time.strftime("%-I:%M %p on %a %-m/%-d"))
+            for new_visit in new_live:
+                old_visits_possible = [x for x in old_live if x["name"] ==
+                                       new_visit["name"] and x["timein"] == new_visit["timein"]]
+                if len(old_visits_possible) == 0:
+                    # New visit
+                    if new_visit["here"]:
+                        slack_post(new_visit["name"] + " arrived at " +
+                                   datetime.datetime.fromtimestamp(new_visit["timein"]).strftime("%-I:%M %p on %a %-m/%-d"))
+
+                else:
+                    old_visit = old_visits_possible[0]
+
+                    # Left
+                    if not new_visit["here"] and old_visit["here"]:
+                        slack_post(new_visit["name"] + " left at " +
+                                   datetime.datetime.fromtimestamp(new_visit["timeout"]).strftime("%-I:%M %p on %a %-m/%-d"))
+
+                    # Detected again
+                    if new_visit["here"] and not old_visit["here"]:
+                        slack_post(new_visit["name"] + " detected again at " +
+                                   time.strftime("%-I:%M %p on %a %-m/%-d"))
+        old_live = new_live
 
 
 if __name__ == "__main__":

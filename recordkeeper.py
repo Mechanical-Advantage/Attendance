@@ -220,7 +220,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
     # Iterate through records, find name and process
     for record in records:
         # Get name
-        if record[1] == 0: # Device detection
+        if record[1] == 0:  # Device detection
 
             # Get list of potential names
             try:
@@ -228,9 +228,9 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
             except:
                 continue
 
-            if len(names) == 1: # Single name (never changed ownership)
+            if len(names) == 1:  # Single name (never changed ownership)
                 process_record(record, names[0]["name"])
-            else: # Multiple names (changed ownership, find any valid names)
+            else:  # Multiple names (changed ownership, find any valid names)
                 for name in names:
                     if name["start"] != None:
                         if record[0] < name["start"]:
@@ -240,7 +240,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
                             continue
                     process_record(record, name["name"])
 
-        else: # Manual sign in/out
+        else:  # Manual sign in/out
             name = id_lookup[record[2]]
             process_record(record, name)
 
@@ -281,25 +281,28 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
 def get_live(now):
     max_past = max((time_config["auto_live"] - time_config["auto_extension"]),
                    (time_config["manual_live"] - time_config["manual_extension"]))
-    visits = get_range(now - (max_past * 60), now)
+
+    # Extra 3 minutes give Slack poster time to detect manual timeouts
+    visits = get_range(now - (max_past * 60) - 180, now)
     results = []
     for visit in visits:
         if not visit["name"] in results:
             # manual sign-outs immediately removed from live
             if visit["timeout"] != -2 and visit["manual_signout"]:
-                continue
-            if visit["manual_signin"]:
-                cutoff = time_config["manual_live"] - \
-                    time_config["manual_extension"]
+                visit["here"] = False
             else:
-                cutoff = time_config["auto_live"] - \
-                    time_config["auto_extension"]
-            if visit["timeout"] == -2:
-                compare_time = time.time()
-            else:
-                compare_time = visit["timeout"]
-            if now - compare_time <= cutoff * 60:
-                results.append(visit)
+                if visit["manual_signin"]:
+                    cutoff = time_config["manual_live"] - \
+                        time_config["manual_extension"]
+                else:
+                    cutoff = time_config["auto_live"] - \
+                        time_config["auto_extension"]
+                if visit["timeout"] == -2:
+                    compare_time = time.time()
+                else:
+                    compare_time = visit["timeout"]
+                visit["here"] = now - compare_time <= cutoff * 60
+            results.append(visit)
 
     results = sorted(results, key=lambda x: x["name"])
 
