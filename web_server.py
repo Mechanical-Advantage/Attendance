@@ -1754,26 +1754,24 @@ def slack_poster():
         new_live = recordkeeper.get_livecache()
         if new_live != old_live:
             for new_visit in new_live:
-                old_visits_possible = [x for x in old_live if x["name"] ==
-                                       new_visit["name"] and x["timein"] == new_visit["timein"]]
-                if len(old_visits_possible) == 0:
-                    # New visit
-                    if new_visit["here"]:
+                old_visits = sorted([x for x in old_live if x["name"] == new_visit["name"]], key=lambda x: (
+                    time.time() if x["timeout"] == -2 else x["timeout"]))
+                if len(old_visits) == 0:
+                    here_last = False
+                else:
+                    here_last = old_visits[-1]["here"]
+
+                if not new_visit["here"] and here_last:
+                    slack_post(new_visit["name"] + " left at " +
+                               datetime.datetime.fromtimestamp(new_visit["timeout"]).strftime("%-I:%M %p on %a %-m/%-d"))
+
+                if new_visit["here"] and not here_last:
+                    if time.time() - new_visit["timein"] < config.mon_write_wait + 15:
                         slack_post(new_visit["name"] + " arrived at " +
                                    datetime.datetime.fromtimestamp(new_visit["timein"]).strftime("%-I:%M %p on %a %-m/%-d"))
-
-                else:
-                    old_visit = old_visits_possible[0]
-
-                    # Left
-                    if not new_visit["here"] and old_visit["here"]:
-                        slack_post(new_visit["name"] + " left at " +
-                                   datetime.datetime.fromtimestamp(new_visit["timeout"]).strftime("%-I:%M %p on %a %-m/%-d"))
-
-                    # Detected again
-                    if new_visit["here"] and not old_visit["here"]:
-                        slack_post(new_visit["name"] + " detected again at " +
-                                   time.strftime("%-I:%M %p on %a %-m/%-d"))
+                    else:
+                        slack_post(
+                            new_visit["name"] + " detected again at " + time.strftime("%-I:%M %p on %a %-m/%-d"))
         old_live = new_live
 
 
