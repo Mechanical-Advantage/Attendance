@@ -16,24 +16,32 @@ import os
 # Setup
 database = config.data + "/attendance.db"
 log_database = config.data + "/logs.db"
+advised_ip = "127.0.0.1"
 language_manager = inflect.engine()
 record_requests = []
 request_threads = []
 if config.enable_slack:
     slack_url = open(config.data + "/slack_url.txt", "r").read()
 
-# Get ip address
-if config.web_forced_advised != None:
-    advised_ip = config.web_forced_advised
-else:
-    ifconfig_result = subprocess.run(
-        ["ifconfig"], stdout=subprocess.PIPE).stdout.decode('utf-8')
-    ifconfig_result = [x.split("inet ")[1].split(" ")[0]
-                       for x in ifconfig_result.split("\n") if "inet " in x]
-    ifconfig_result = [x for x in ifconfig_result if x != "127.0.0.1"]
-    if len(ifconfig_result) < 1:
-        ifconfig_result.append("127.0.0.1")
-    advised_ip = ifconfig_result[0]
+
+def get_ip_address():
+    global advised_ip
+    if config.web_forced_advised != None:
+        advised_ip = config.web_forced_advised
+    else:
+        while advised_ip == "127.0.0.1":
+            ifconfig_result = subprocess.run(
+                ["ifconfig"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+            ifconfig_result = [x.split("inet ")[1].split(" ")[0]
+                               for x in ifconfig_result.split("\n") if "inet " in x]
+            ifconfig_result = [x for x in ifconfig_result if x != "127.0.0.1"]
+            if len(ifconfig_result) < 1:
+                ifconfig_result.append("127.0.0.1")
+                cherrypy.log("Failed to detect server IP address, will retry")
+                time.sleep(5)
+            advised_ip = ifconfig_result[0]
+        cherrypy.log(
+            "Successfully detected server IP address '" + advised_ip + "'")
 
 
 def slack_post(message):
@@ -959,7 +967,7 @@ updateSlideshow()
 
 </body></html>
         """
-        #Fill in action
+        # Fill in action
         if func == "signout":
             output = output.replace("$action", "sign out")
         else:
@@ -1022,42 +1030,28 @@ $contents
 
         if func == "info":
             output = output.replace("$contents", """
-
 <div style="text-align: center; font-size: 30px; font-style: italic;"><a href="/manual">< Return</a></div><br>
-<div class="message">$message
-<br><br>Have $deviceDescription device you bring to robotics? <a href="/manual_add_device_stage_1?name=$name" class="show">Click here</a>
+<div class="message">
+<div style="font-size: 50px;">$name</div>
+You have registered the following devices:
+<br><br><div style="font-size: 30px;color: #444444;">$devices</div>
+<br><a href="/manual_add_device_stage_1?name=$name" class="show">Click here</a> to register a new device
 </div>
             """)
             cur.execute(
                 "SELECT mac,description,reliable FROM devices WHERE name=?", (name,))
             data = cur.fetchall()
-            descriptions = []
-            manual_has_device = len(data) > 0
-            manual_valid_description = False
-            manual_reliable_device = False
-            for i in range(0, len(data)):
-                if data[i][2] == 1:
-                    manual_reliable_device = True
-                if data[i][1] != None:
-                    manual_valid_description = True
-                    if data[i][2] == 1:
-                        descriptions.append(data[i][1])
-            auto = (
-                manual_has_device and manual_valid_description and manual_reliable_device)
-
-            if auto == False:
-                output = output.replace(
-                    "$message", "You, $name, should sign in manually. Be sure to sign out when you leave.")
-                output = output.replace("$deviceDescription", "a")
-
+            if len(data) == 0:
+                devices = [
+                    "-- None (please sign in manually or register a device) --"]
             else:
-                output = output.replace(
-                    "$message", "You, $name, do not normally need to sign in.<br><br>However, if do not have your $devices, please sign in manually.")
-                output = output.replace("$deviceDescription", "another")
-                output = output.replace(
-                    "$devices", format_list(descriptions, "or"))
+                devices = []
+                for i in data:
+                    devices.append(
+                        i[1] + " (" + i[0] + ")" + (" - unreliable" if i[2] == 0 else ""))
 
-            output = output.replace("$name", name)
+            output = output.replace("$name", name).replace(
+                "$devices", "<br>".join(devices))
         else:
             # Get time
             now = current_time()
@@ -1098,13 +1092,13 @@ $contents
         conn.close()
         return(output.replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_add_device_stage_1(self, name="John Doe"):
         output = """
 <html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
 <script type="application/javascript">
 function chgAction(mainForm){
-if( document.mainForm.device_type.selectedIndex==13 )
+if( document.mainForm.device_type.selectedIndex==14 )
     {document.mainForm.action = "/manual_add_device_stage_2";}
 else
 {document.mainForm.action = "/manual_add_device_stage_3";}
@@ -1131,6 +1125,7 @@ In order to automatically track attendace, we can detect when devices enter this
 <option>Android Wear</option>
 <option>Samsung Gear</option>
 <option>iPod Touch</option>
+<option>Nintendo Switch</option>
 <option>Other</option>
 </select>
 <input type="hidden" name="name" value="$name">
@@ -1143,7 +1138,7 @@ In order to automatically track attendace, we can detect when devices enter this
         output = output.replace("$name", name)
         return(output.replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_add_device_stage_2(self, name="John Doe", device_type="iPhone"):
         output = """
 <html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css"></head><body>
@@ -1164,7 +1159,7 @@ How would you classify this device? (phone, tablet, laptop, watch, etc.) <input 
         output = output.replace("$device_type", device_type)
         return(output.replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_add_device_stage_3(self, name="John Doe", device_type="iPhone", description="", force_manual="0"):
         output = """
 <html><head><title>$title_signin</title><link rel="stylesheet" type="text/css" href="/static/css/manual.css"><link rel="stylesheet" type="text/css" href="/static/css/font.css">
@@ -1225,28 +1220,30 @@ Next, please go to a web browser on your $description and type in the address:<b
                 "Apple Watch": "watch",
                 "Samsung Gear": "watch",
                 "Android Wear": "watch",
-                "iPod Touch": "iPod Touch"
+                "iPod Touch": "iPod Touch",
+                "Nintendo Switch": "console"
             }
             description = description_lookup[device_type]
 
         # Fill in content based on auto or manual entry
-        if description == "watch" or force_manual == "1":  # Manual entry
+        if description == "watch" or description == "console" or force_manual == "1":  # Manual entry
             output = output.replace("$content", output_manual)
-            #Fill in instructions
+            # Fill in instructions
             instructions_lookup = {
-                "iPhone": ["Go to the settings app", "Tap 'General'", "Tap 'About'", "Your iPhone's MAC address is listed as 'Wi-Fi Address'"],
+                "iPhone": ["Go to the settings app", "Tap 'Wi-Fi'", "Tap 'i' next to HS-Access or HS-Access_5GHz", "Your iPhone's MAC address is listed as 'Wi-Fi Address'"],
                 "Android Phone": ["Go to the settings app", "Tap 'About phone'", "Tap 'Status'", "Your phone's MAC address is listed as 'Wi-Fi MAC Address'", "If these steps don't work, Google how to find the MAC address on your specific device."],
                 "Windows 10 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "Windows 8 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "Windows 7 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'getmac' and press Enter", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "MacBook": ["Open System Preferences", "Select Network", "In the left-hand pane, select 'Wifi'", "Click 'Advanced' in the lower right corner", "At the bottom of the window, your device's MAC address is listed as 'Wi-Fi address'"],
                 "Chromebook": ["Click the status area, where your account picture appears", "Click the section that says Connected to (and the name of the network)", "At the top of the box that appears, pick your network", "In the window that opens, your MAC address is the 'Hardware address'"],
-                "iPad": ["Go to the setting app", "Tap 'General'", "Tap 'About'", "Your iPad's MAC address is listed as 'Wi-Fi Address'"],
+                "iPad": ["Go to the settings app", "Tap 'Wi-Fi'", "Tap 'i' next to HS-Access or HS-Access_5GHz", "Your iPad's MAC address is listed as 'Wi-Fi Address'"],
                 "Android Tablet": ["Go to the settings app", "Tap 'About tablet'", "Tap 'Status'", "Your tablet's MAC address is listed as 'Wi-Fi MAC Address'", "If these steps don't work, Google how to find the MAC address on your specific device."],
                 "Apple Watch": ["Go to the Watch app on your iPhone", "Tap 'General'", "Tap 'About'", "Your watch's MAC address is listed as 'Wi-Fi Address'"],
                 "Android Wear": ["Go to Settings", "Choose 'System'", "Click 'About'", "Select 'Model'", "Your watch's MAC address will be displayed"],
                 "Samsung Gear": ["Go to Settings", "Press 'Gear info'", "Select 'About device'", "Your watch's MAC address will be displayed"],
                 "iPod Touch": ["Go to the settings app", "Tap 'General'", "Tap 'About'", "Your device's MAC address is listed as 'Wi-Fi Address'"],
+                "Nintendo Switch": ["From the home screen, select 'System Settings'", "In settings, select 'Internet' and 'Internet Settings'", "Your console's MAC address is listed at the bottom of the page as 'System MAC address'"],
                 "Other": ["Google how to get your device's Wi-Fi MAC address", "Do that"]
             }
             instructions = instructions_lookup[device_type]
@@ -1274,7 +1271,7 @@ Next, please go to a web browser on your $description and type in the address:<b
         output = output.replace("$hostname", advised_ip)
         return(output.replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_add_device_stage_4(self, name="John Doe", mac="", description="unknown"):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1308,7 +1305,7 @@ $message
 
         return(output.replace("$name", name).replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_wait_for_mac(self):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1351,7 +1348,7 @@ Your device is almost ready to be tracked.
 
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def add(self):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1390,7 +1387,7 @@ Your device is almost ready to be tracked.
         conn.close()
         return(output.replace("$title_signin", config.signin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def peoplelist(self, sort_first='0'):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1455,7 +1452,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output.replace("$title", config.admin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def peoplelist_add(self, name="John Doe"):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1467,7 +1464,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return("""<meta http-equiv="refresh" content="0; url=/person/""" + name + """" />""")
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person(self, name="John Doe"):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1555,7 +1552,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output.replace("$title", config.admin_title))
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_rename(self, old_name="John Doe", new_name="John Doe"):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1590,7 +1587,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         output = output.replace("$name", new_name)
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_remove(self, name="John Doe"):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1602,7 +1599,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return("""<meta http-equiv="refresh" content="0; url=/peoplelist" />""")
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_add_category(self, name="John Doe", category=""):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1617,7 +1614,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_remove_category(self, name="John Doe", category=""):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1632,7 +1629,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_toggle_reliable(self, id=-1):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1657,7 +1654,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def person_remove_device(self, id=-1):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1675,7 +1672,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
         conn.close()
         return(output)
 
-    @cherrypy.expose
+    @ cherrypy.expose
     def manual_display_type(self):
         conn = sql.connect(database)
         cur = conn.cursor()
@@ -1768,6 +1765,8 @@ if __name__ == "__main__":
     if config.enable_slack:
         slack_thread = threading.Thread(target=slack_poster, daemon=True)
         slack_thread.start()
+    get_ip_thread = threading.Thread(target=get_ip_address, daemon=True)
+    get_ip_thread.start()
     cherrypy.config.update({'server.socket_port': config.web_port, 'server.socket_host': config.web_host,
                             'error_page.500': error_page, 'error_page.404': error_page})
     cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
