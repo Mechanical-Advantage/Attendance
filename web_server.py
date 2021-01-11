@@ -908,10 +908,12 @@ function reloadIFrame() {
 
 <div class="aboveSlideshow">
 <div class="title">People Here Now:</div>
-<div class="yellow_alert"">(Must sign out manually)</div>
+<div class="yellow_alert"">(Highlighted names must sign out manually)</div>
 <div class="yellow_box"></div>
 <div style="position: absolute; top: 85px; left: 50%; transform: translate(-50%, 0); width: 100%;"><iframe id="liveView" src="/live/signin" style="border: none; width: 100%; height: 300px;"></iframe></div>
-<div class="alert"><a href="/manual_select/info" class="show">Check devices / Register new device</a></div>
+<img class="covid-left" src="/static/img/covid.png" />
+<img class="covid-right" src="/static/img/covid.png" />
+<div class="alert" style="color: #DD0000;">This system is necessary for contact tracing. If you don't appear automatically, <a href="/manual_select/info" class="show">check your registered devices.</a></div>
 <div class="signin">Sign In</div>
 <div class="signout">Sign Out</div>
 

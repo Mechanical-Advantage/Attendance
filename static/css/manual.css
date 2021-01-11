@@ -22,7 +22,7 @@ html {
 
 div.aboveSlideshow {
 	z-index: 4;
-	text-shadow: 0px 0px 7px white;
+	text-shadow: 2px 2px 12px white, -2px -2px 12px white, -2px 2px 12px white, 2px -2px 12px white;
 	-webkit-transition: opacity 1s ease-in-out;
 	-moz-transition: opacity 1s ease-in-out;
 	-o-transition: opacity 1s ease-in-out;
@@ -52,7 +52,7 @@ a.show {
 div.leftlink {
 	position: absolute;
 	top: 0%;
-	bottom: 100px;
+	bottom: 130px;
 	left: 0%;
 	width: 50%;
 	z-index: 2;
@@ -61,7 +61,7 @@ div.leftlink {
 div.rightlink {
 	position: absolute;
 	top: 0%;
-	bottom: 100px;
+	bottom: 130px;
 	right: 0%;
 	width: 50%;
 	z-index: 2;
@@ -106,7 +106,7 @@ div.yellow_box {
 	top: 60px;
 	left: 50%;
 	height: 28px;
-	width: 315px;
+	width: 525px;
 	transform: translateX(-50%);
 	background-color: yellow;
 }
@@ -134,11 +134,53 @@ div.center {
 	transform: translate(-50%, 0);
 }
 
-div.alert {
-	font-size: 35px;
+img.covid-left {
 	position: absolute;
-	left: 0%;
-	width: 100%;
+	left: 15px;
+	bottom: 15px;
+	width: 100px;
+	height: 100px;
+	animation: spin-covid-left 15s cubic-bezier(0.5, 0.3, 0.5, 0.7) infinite;
+}
+
+img.covid-right {
+	position: absolute;
+	right: 15px;
+	bottom: 15px;
+	width: 100px;
+	height: 100px;
+	animation: spin-covid-right 15s cubic-bezier(0.5, 0.3, 0.5, 0.7) infinite;
+}
+
+@keyframes spin-covid-left {
+	0% {
+		transform: rotate(0) scale(0.9);
+	}
+	50% {
+		transform: rotate(360deg) scale(1.05);
+	}
+	100% {
+		transform: rotate(720deg) scale(0.9);
+	}
+}
+
+@keyframes spin-covid-right {
+	0% {
+		transform: rotate(90deg) scale(0.9);
+	}
+	50% {
+		transform: rotate(450deg) scale(1.05);
+	}
+	100% {
+		transform: rotate(810deg) scale(0.9);
+	}
+}
+
+div.alert {
+	font-size: 45px;
+	position: absolute;
+	left: 130px;
+	right: 130px;
 	bottom: 15px;
 	text-align: center;
 	z-index: 1;
