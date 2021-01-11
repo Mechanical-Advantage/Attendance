@@ -1034,8 +1034,9 @@ $contents
 <div class="message">
 <div style="font-size: 50px;">$name</div>
 You have registered the following devices:
-<br><br><div style="font-size: 30px;color: #444444;">$devices</div>
+<br><br><div style="font-size: 30px; color: #444444;">$devices</div>
 <br><a href="/manual_add_device_stage_1?name=$name" class="show">Click here</a> to register a new device
+<div style="font-size: 27px; margin-top: 10px;">Due to changes in iOS 14 and Android 10, you may have to register your device again after upgrading</div>
 </div>
             """)
             cur.execute(
@@ -1198,7 +1199,7 @@ Next, please go to a web browser on your $description and type in the address:<b
 <div style="font-family: monospace;">http://$hostname/add</div>
 
 <br>You must be connected to the HS-Access or HS-Access_5GHz network.
-<br><br><a href="/manual_add_device_stage_3?name=$name&device_type=$device_type&description=$description&force_manual=1" class="show">I can't do that</a>
+<br><br><a href="/manual_add_device_stage_3?name=$name&device_type=$device_type&description=$description&force_manual=1" class="show">I'm having trouble</a>
 
 <br><br><iframe id="waitDisplay" src="/manual_wait_for_mac" style="border: none; width: 100%; height: 200px;"></iframe>
         """
@@ -1513,7 +1514,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
 
         # Get devices
         cur.execute(
-            "SELECT id,description,reliable FROM devices WHERE name=?", (name,))
+            "SELECT id,description,reliable,mac FROM devices WHERE name=?", (name,))
         devices = cur.fetchall()
 
         # Generate devices html
@@ -1527,7 +1528,7 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
                 description = "unknown"
             else:
                 description = devices[i][1]
-            devices_html = devices_html + "<i>" + description + "</i>"
+            devices_html = devices_html + "<i>" + description + " (" + devices[i][3] + ")</i>"
             devices_html = devices_html + " - <a href=\"/person_toggle_reliable/" + \
                 str(devices[i][0]) + "\">" + toggle_text + "</a>"
             devices_html = devices_html + " - <a href=\"/person_remove_device/" + \
