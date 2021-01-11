@@ -943,7 +943,7 @@ updateSlideshow()
         """
 
         imagelist = []
-        for root, dir, files in os.walk(config.repo + "/static/backgrounds"):
+        for root, dir, files in os.walk(config.repo + "/static/backgrounds/"):
             imagelist += [root.split("/static/backgrounds/")
                           [1] + "/" + x for x in files]
         shuffle(imagelist)
@@ -1048,8 +1048,9 @@ You have registered the following devices:
             else:
                 devices = []
                 for i in data:
+                    random_mac = i[0][1] == "2" or i[0][1] == "6" or i[0][1] == "a" or i[0][1] == "e"
                     devices.append(
-                        i[1] + " (" + i[0] + ")" + (" - unreliable" if i[2] == 0 else ""))
+                        i[1] + " (" + ('<span style="color: #D00000;">' if random_mac else "") + i[0] + ("</span>" if random_mac else "") + ")" + (" - unreliable" if i[2] == 0 else ""))
 
             output = output.replace("$name", name).replace(
                 "$devices", "<br>".join(devices))
@@ -1528,7 +1529,10 @@ Sort by <a href="/peoplelist?sort_first=1">first name</a> <a href="/peoplelist">
                 description = "unknown"
             else:
                 description = devices[i][1]
-            devices_html = devices_html + "<i>" + description + " (" + devices[i][3] + ")</i>"
+            random_mac = devices[i][3][1] == "2" or devices[i][3][1] == "6" or devices[i][3][1] == "a" or devices[i][3][1] == "e"
+            devices_html = devices_html + "<i>" + \
+                description + " (" + ('<span style="color: #D00000;">' if random_mac else "") + \
+                devices[i][3] + ("</span>" if random_mac else "") + ")</i>"
             devices_html = devices_html + " - <a href=\"/person_toggle_reliable/" + \
                 str(devices[i][0]) + "\">" + toggle_text + "</a>"
             devices_html = devices_html + " - <a href=\"/person_remove_device/" + \
