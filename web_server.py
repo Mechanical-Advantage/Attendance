@@ -1753,9 +1753,12 @@ def slack_poster():
         time.sleep(1)
         new_live = recordkeeper.get_livecache()
         if new_live != old_live:
-            for new_visit in new_live:
-                old_visits = sorted([x for x in old_live if x["name"] == new_visit["name"]], key=lambda x: (
-                    time.time() if x["timeout"] == -2 else x["timeout"]))
+            names = list(dict.fromkeys([x["name"] for x in new_live]))
+            for name in names:
+                new_visit = sorted([x for x in new_live if x["name"] == name], key=lambda x: (
+                    test_time if x["timeout"] == -2 else x["timeout"]))[-1]
+                old_visits = sorted([x for x in old_live if x["name"] == name], key=lambda x: (
+                    test_time if x["timeout"] == -2 else x["timeout"]))
                 if len(old_visits) == 0:
                     here_last = False
                 else:
