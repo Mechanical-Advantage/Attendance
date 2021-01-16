@@ -1756,9 +1756,9 @@ def slack_poster():
             names = list(dict.fromkeys([x["name"] for x in new_live]))
             for name in names:
                 new_visit = sorted([x for x in new_live if x["name"] == name], key=lambda x: (
-                    test_time if x["timeout"] == -2 else x["timeout"]))[-1]
+                    time.time() if x["timeout"] == -2 else x["timeout"]))[-1]
                 old_visits = sorted([x for x in old_live if x["name"] == name], key=lambda x: (
-                    test_time if x["timeout"] == -2 else x["timeout"]))
+                    time.time() if x["timeout"] == -2 else x["timeout"]))
                 if len(old_visits) == 0:
                     here_last = False
                 else:
