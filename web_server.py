@@ -1789,5 +1789,5 @@ if __name__ == "__main__":
     get_ip_thread.start()
     cherrypy.config.update({'server.socket_port': config.web_port, 'server.socket_host': config.web_host,
                             'error_page.500': error_page, 'error_page.404': error_page})
-    cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
+    cherrypy.quickstart(main_server(), "/", {"/": {"log.access_file": config.data + "/logs/serverlog.log", "log.error_file": "/logs/serverlog.log", "tools.sessions.on": True, "tools.sessions.timeout": 30}, "/static": {
                         "tools.staticdir.on": True, "tools.staticdir.dir": config.repo + "/static"}, "/favicon.ico": {"tools.staticfile.on": True, "tools.staticfile.filename": config.repo + "/static/img/favicon.ico"}})
