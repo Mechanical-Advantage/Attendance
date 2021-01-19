@@ -186,7 +186,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
                 break
 
         # If mac and manual signout, check if within grace period
-        if record[1] == 0:
+        if record[1] == 0 or record[1] == 3:
             if last_found:
                 if results[last_i]["manual_signout"]:
                     if record[0] - results[last_i]["timeout"] <= time_config["manual_grace"] * 60:
@@ -220,7 +220,7 @@ def get_range(start_time, end_time, filter=[], debug=False, cached=False):
     # Iterate through records, find name and process
     for record in records:
         # Get name
-        if record[1] == 0:  # Device detection
+        if record[1] == 0 or record[1] == 3:  # Device detection
 
             # Get list of potential names
             try:
