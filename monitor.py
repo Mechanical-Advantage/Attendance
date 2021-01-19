@@ -113,9 +113,9 @@ def network_monitor():
 	global write_queue
 
     # Get list of possible ips
-    ips = []
-    for i in range(int(config.mon_ip_range[0].split(".")[-1]) + 1, int(config.mon_ip_range[1].split(".")[-1])):
-        ips.append(".".join(config.mon_ip_range[0].split(".")[:-1] + [str(i)]))
+	ips = []
+	for i in range(int(config.mon_ip_range[0].split(".")[-1]) + 1, int(config.mon_ip_range[1].split(".")[-1])):
+		ips.append(".".join(config.mon_ip_range[0].split(".")[:-1] + [str(i)]))
 
 	last_pings = {}
 	while True:
