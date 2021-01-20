@@ -183,7 +183,7 @@ def writer():
 		print(str(round(time.time())) + " : WRITER : Writing " + str(len(write_queue_internal)) + " records")
 		for record in write_queue_internal:
 			if record[2] not in id_lookup_cache:
-				cur.execute("INSERT INTO lookup(value) VALUES (?)", (record[1],))
+				cur.execute("INSERT INTO lookup(value) VALUES (?)", (record[2],))
 				lookup_id = cur.execute("SELECT seq FROM sqlite_sequence WHERE name='lookup'").fetchall()[0][0] + 1
 				id_lookup_cache[record[2]] = lookup_id
 			else:
