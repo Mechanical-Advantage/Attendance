@@ -161,6 +161,9 @@ def network_monitor():
 						print(str(current_time) + " : NETWRK : " + mac)
 						write_queue.append([current_time, 3, mac])
 		
+		# Wait to continue (prevents overwhelming network interface)
+		time.sleep(config.mon_ping_wait)
+		
 # Run db write thread
 write_queue = []
 def writer():
