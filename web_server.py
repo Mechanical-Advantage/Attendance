@@ -1769,7 +1769,7 @@ def slack_poster():
                                datetime.datetime.fromtimestamp(new_visit["timeout"]).strftime("%-I:%M %p on %a %-m/%-d"))
 
                 if new_visit["here"] and not here_last:
-                    if time.time() - new_visit["timein"] < config.mon_write_wait + 15:
+                    if time.time() - new_visit["timein"] < config.mon_write_wait + 180:
                         slack_post(new_visit["name"] + " arrived at " +
                                    datetime.datetime.fromtimestamp(new_visit["timein"]).strftime("%-I:%M %p on %a %-m/%-d"))
                     else:
