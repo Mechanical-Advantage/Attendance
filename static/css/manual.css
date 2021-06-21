@@ -134,53 +134,11 @@ div.center {
 	transform: translate(-50%, 0);
 }
 
-img.covid-left {
-	position: absolute;
-	left: 15px;
-	bottom: 15px;
-	width: 100px;
-	height: 100px;
-	animation: spin-covid-left 15s cubic-bezier(0.5, 0.3, 0.5, 0.7) infinite;
-}
-
-img.covid-right {
-	position: absolute;
-	right: 15px;
-	bottom: 15px;
-	width: 100px;
-	height: 100px;
-	animation: spin-covid-right 15s cubic-bezier(0.5, 0.3, 0.5, 0.7) infinite;
-}
-
-@keyframes spin-covid-left {
-	0% {
-		transform: rotate(0) scale(0.9);
-	}
-	50% {
-		transform: rotate(360deg) scale(1.05);
-	}
-	100% {
-		transform: rotate(720deg) scale(0.9);
-	}
-}
-
-@keyframes spin-covid-right {
-	0% {
-		transform: rotate(90deg) scale(0.9);
-	}
-	50% {
-		transform: rotate(450deg) scale(1.05);
-	}
-	100% {
-		transform: rotate(810deg) scale(0.9);
-	}
-}
-
 div.alert {
 	font-size: 45px;
 	position: absolute;
-	left: 130px;
-	right: 130px;
+	left: 10%;
+	right: 10%;
 	bottom: 15px;
 	text-align: center;
 	z-index: 1;
