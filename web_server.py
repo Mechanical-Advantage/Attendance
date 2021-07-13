@@ -1114,7 +1114,7 @@ In order to automatically track attendace, we can detect when devices enter this
 <br>What sort of device is it? <select id="device_type" name="device_type" onChange="javascript:chgAction()">
 <option>iPhone</option>
 <option>Android Phone</option>
-<option>Windows 10 Laptop</option>
+<option>Windows 10/11 Laptop</option>
 <option>Windows 8 Laptop</option>
 <option>Windows 7 Laptop</option>
 <option>MacBook</option>
