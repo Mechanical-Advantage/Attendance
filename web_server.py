@@ -1210,7 +1210,7 @@ Next, please go to a web browser on your $description and type in the address:<b
             description_lookup = {
                 "iPhone": "phone",
                 "Android Phone": "phone",
-                "Windows 10 Laptop": "laptop",
+                "Windows 10/11 Laptop": "laptop",
                 "Windows 8 Laptop": "laptop",
                 "Windows 7 Laptop": "laptop",
                 "MacBook": "laptop",
@@ -1232,7 +1232,7 @@ Next, please go to a web browser on your $description and type in the address:<b
             instructions_lookup = {
                 "iPhone": ["Go to the settings app", "Tap 'Wi-Fi'", "Tap 'i' next to HS-Access or HS-Access_5GHz", "Your iPhone's MAC address is listed as 'Wi-Fi Address'"],
                 "Android Phone": ["Go to the settings app", "Tap 'About phone'", "Tap 'Status'", "Your phone's MAC address is listed as 'Wi-Fi MAC Address'", "If these steps don't work, Google how to find the MAC address on your specific device."],
-                "Windows 10 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
+                "Windows 10/11 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "Windows 8 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'ipconfig /all' and press Enter. Your network configurations will display", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "Windows 7 Laptop": ["Open the start menu", "In the search box, type 'cmd' and press enter", "Type in 'getmac' and press Enter", "Scroll down to your network adapter and look for the values next to 'Physical Address'", "This is your MAC address"],
                 "MacBook": ["Open System Preferences", "Select Network", "In the left-hand pane, select 'Wifi'", "Click 'Advanced' in the lower right corner", "At the bottom of the window, your device's MAC address is listed as 'Wi-Fi address'"],
